@@ -37,14 +37,18 @@ app.post('/api/create-transaction', async (req, res) => {
         });
 
         const data = await response.json();
+        console.log("Respons WaroengPay:", data); // Membantu melihat struktur respons jika terjadi kendala
         
-        if (response.ok && (data.pay_url || data.payUrl)) {
+        // Deteksi fleksibel berbagai format key URL pembayaran dari API WaroengPay
+        const paymentUrl = data.pay_url || data.payUrl || data.payment_url || data.paymentUrl || data.url;
+        
+        if (response.ok && paymentUrl) {
             res.json({ 
-                paymentUrl: data.pay_url || data.payUrl, 
+                paymentUrl: paymentUrl, 
                 orderId: referenceId 
             });
         } else {
-            throw new Error(data.error || 'Gagal membuat tagihan di WaroengPay');
+            throw new Error(data.error || data.message || 'Gagal membuat tagihan di WaroengPay');
         }
     } catch (error) {
         console.error("WaroengPay Error:", error);
