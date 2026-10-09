@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HIRE ESPORT - Saatnya Unjuk Skill</title>
+<meta name="description" content="Turnamen e-sports Mobile Legends 5v5 sistem gugur. Daftarkan timmu dan rebut total hadiah.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Library untuk Download E-Ticket ke Gambar -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: '#0b0f19', panel: '#131826', well: '#080c14', line: '#222b40',
+          gold: '#f0b90b', crimson: '#ef4444', volt: '#3b82f6', mist: '#94a3b8'
+        },
+        fontFamily: {
+          display: ['Teko', 'Impact', 'sans-serif'],
+          body: ['Barlow', 'system-ui', 'sans-serif']
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+  body { background: #0b0f19; color: #f1f5f9; font-family: 'Barlow', system-ui, sans-serif; }
+
+  .chamfer { clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+  .chamfer-sm { clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+  .frame { background: linear-gradient(135deg, rgba(240,185,11,.7), #222b40 40%, #222b40 60%, rgba(59,130,246,.6)); padding: 1px; }
+  .frame > .inner { background: #131826; }
+  .frame-red { background: linear-gradient(135deg, rgba(239,68,68,.8), #222b40 45%, #222b40); padding: 1px; }
+
+  .field { width: 100%; background: #080c14; border: 1px solid #222b40; color: #f1f5f9; padding: .7rem .85rem; font-size: 1rem; transition: border-color .15s, box-shadow .15s; }
+  .field::placeholder { color: #475569; }
+  .field:focus { outline: none; border-color: #f0b90b; box-shadow: 0 0 0 3px rgba(240,185,11,.18); }
+  .field[aria-invalid="true"] { border-color: #ef4444; }
+  .err { color: #f87171; font-size: .8rem; min-height: 1.1rem; margin-top: .25rem; }
+  .lbl { display: block; font-size: .85rem; font-weight: 500; color: #cbd5e1; margin-bottom: .35rem; }
+
+  .btn-gold { background: linear-gradient(180deg, #facc15, #ca8a04); color: #0f172a; font-family: 'Teko', sans-serif; font-weight: 600; letter-spacing: .02em; transition: filter .15s, transform .1s; display: inline-flex; align-items: center; justify-content: center; }
+  .btn-gold:hover { filter: brightness(1.08); }
+  .btn-gold:active { transform: translateY(1px); }
+  .btn-gold:disabled { filter: grayscale(.8) brightness(.6); cursor: not-allowed; }
+  .btn-ghost { border: 1px solid #222b40; color: #cbd5e1; transition: border-color .15s, color .15s; }
+  .btn-ghost:hover:not(:disabled) { border-color: #f0b90b; color: #fff; }
+
+  .title-gold { background: linear-gradient(180deg, #fef08a 0%, #f0b90b 55%, #a16207 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sec-title { font-family: 'Teko', sans-serif; font-weight: 700; line-height: .9; font-size: clamp(2.8rem, 7vw, 4.6rem); }
+  .sec-bar { width: 56px; height: 4px; background: linear-gradient(90deg, #f0b90b, #ef4444); margin-top: .8rem; }
+
+  .grid-bg { background-image: linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size: 44px 44px; }
+
+  @keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.97); } to { opacity: 1; transform: none; } }
+  .pop { animation: pop .3s ease-out both; }
+  @keyframes pulseGold { 0%,100% { box-shadow: 0 0 0 0 rgba(240,185,11,.55); } 50% { box-shadow: 0 0 0 14px rgba(240,185,11,0); } }
+  .pulse-gold { animation: pulseGold 1.8s infinite; }
+  .spin { animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .nav-link { position: relative; color: #94a3b8; font-weight: 500; padding: .4rem .1rem; transition: color .15s; }
+  .nav-link:hover { color: #fff; }
+  .nav-link::after { content: ''; position: absolute; left: 0; right: 0; bottom: -2px; height: 2px; background: #f0b90b; transform: scaleX(0); transform-origin: left; transition: transform .2s; }
+  .nav-link.active { color: #f0b90b; }
+  .nav-link.active::after { transform: scaleX(1); }
+
+  /* Bracket Liquipedia */
+  .liquipedia-bracket { display: flex; gap: 2.5rem; overflow-x: auto; padding: 1rem 0.5rem 2rem 0.5rem; align-items: center; }
+  .lp-round { display: flex; flex-direction: column; justify-content: space-around; min-width: 220px; flex: 1; }
+  .lp-round-header { font-family: 'Teko', sans-serif; font-size: 1.5rem; font-weight: 600; color: #f0b90b; border-bottom: 2px solid #222b40; padding-bottom: 0.3rem; margin-bottom: 1rem; text-align: center; }
+  .lp-matchup { background: #0e1320; border: 1px solid #222b40; border-radius: 4px; margin: 0.6rem 0; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
+  .lp-team { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0.75rem; font-size: 0.9rem; border-bottom: 1px solid #1a2234; }
+  .lp-team:last-child { border-bottom: none; }
+  .lp-team .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #cbd5e1; max-width: 140px; }
+  .lp-team .score { font-family: 'Teko', sans-serif; font-size: 1.25rem; color: #64748b; text-align: right; }
+  .lp-team.winner { background: rgba(240, 185, 11, 0.1); color: #ffffff; font-weight: 600; }
+  .lp-team.winner .score { color: #f0b90b; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+
+<div id="site">
+
+<!-- ================= NAVBAR ================= -->
+<header class="sticky top-0 z-40 bg-ink/70 backdrop-blur-xl border-b border-white/10">
+  <div class="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between gap-4">
+    <a href="#home" class="flex items-center gap-2.5 shrink-0" aria-label="Beranda">
+      <span class="font-display text-[1.7rem] leading-none pt-1 tracking-wide" data-bind="tournamentName">HIRE ESPORT</span>
+    </a>
+
+    <nav class="hidden md:flex items-center gap-7" aria-label="Navigasi utama">
+      <a class="nav-link" data-link="home" href="#home">Home</a>
+      <a class="nav-link" data-link="about" href="#about">About</a>
+      <a class="nav-link" data-link="teams" href="#teams">Tim Terdaftar</a>
+      <a class="nav-link" data-link="halloffame" href="#halloffame">Hall of Fame</a>
+      <a class="nav-link" data-link="sistem" href="#sistem">Sistem Turnamen</a>
+      <a class="nav-link" data-link="bracket" href="#bracket">Bracket</a>
+      <a class="nav-link" data-link="daftar" href="#daftar">Daftar</a>
+    </nav>
+
+    <div class="flex items-center gap-2">
+      <a href="#daftar" class="btn-gold chamfer-sm px-4 sm:px-5 py-1.5 text-xl sm:text-2xl leading-none pt-2">Daftar Sekarang</a>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- ================= HERO DENGAN VIDEO BACKGROUND & COMPENDIUM ================= -->
+<section id="home" class="relative overflow-hidden min-h-[85vh] flex items-center">
+  <video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover opacity-65 pointer-events-none">
+    <source src="/images/WhatsApp Video 2026-10-07 at 16.36.18.mp4" type="video/mp4">
+    Browser Anda tidak mendukung tag video.
+  </video>
+
+  <div class="absolute inset-0 bg-ink/75" aria-hidden="true"></div>
+  <div class="absolute inset-0 grid-bg opacity-30" aria-hidden="true"></div>
+
+  <div class="relative max-w-6xl mx-auto px-5 pt-14 pb-16 sm:pt-20 sm:pb-24 w-full">
+    <p class="text-gold font-medium mb-2">Season 2 · Mobile Legends 5v5 · Single Elimination</p>
+    <h1 class="font-display font-bold leading-[.8] text-[5.4rem] sm:text-[9rem] lg:text-[11rem] title-gold">
+      <span data-bind="tournamentNameA">HIRE CUP</span><br><span data-bind="tournamentNameB">VOL 2</span>
+    </h1>
+    <p class="mt-6 max-w-xl text-lg text-slate-300">
+      Turnamen Mobile Legends dengan sistem piala bergilir ala The International. Tiga puluh dua tim, satu bracket profesional, dan satu juara sejati.
+    </p>
+
+    <div class="mt-8 flex flex-col lg:flex-row gap-5 lg:items-stretch max-w-4xl">
+      <div class="frame chamfer lg:flex-1"><div class="inner chamfer p-5 sm:p-6 h-full">
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-mist">Total Hadiah (Live Compendium)</p>
+          <span class="text-[10px] bg-gold/20 text-gold px-2 py-0.5 rounded font-bold uppercase tracking-wider">Live PrizePool</span>
+        </div>
+        <p id="prizeTotal" class="font-display font-bold text-[3.8rem] sm:text-[5rem] leading-[.9] title-gold mt-1">Rp100.000</p>
+        <p class="text-xs text-mist mt-1"><span id="poolTeamCount">0</span> Setiap Team Yang Mendaftar Maka Prize Pool akan Bertambah Di Mulai Dari 100k Dan akan bertambah Ketika Team mendaftar(+Rp150k/tim)</p>
+      </div></div>
+
+      <div class="frame-red chamfer lg:flex-1"><div class="bg-panel chamfer p-5 sm:p-6 h-full">
+        <p class="text-sm text-mist">Pendaftaran ditutup dalam</p>
+        <div id="countdownHero" class="mt-2 grid grid-cols-4 gap-2 text-center" role="timer">
+          <div class="bg-well border border-line py-2"><p class="font-display text-5xl leading-none tabular-nums" data-cd="d">00</p><p class="text-xs text-mist mt-1">hari</p></div>
+          <div class="bg-well border border-line py-2"><p class="font-display text-5xl leading-none tabular-nums" data-cd="h">00</p><p class="text-xs text-mist mt-1">jam</p></div>
+          <div class="bg-well border border-line py-2"><p class="font-display text-5xl leading-none tabular-nums" data-cd="m">00</p><p class="text-xs text-mist mt-1">menit</p></div>
+          <div class="bg-well border border-line py-2"><p class="font-display text-5xl leading-none tabular-nums text-crimson" data-cd="s">00</p><p class="text-xs text-mist mt-1">detik</p></div>
+        </div>
+        <p id="closeLabel" class="text-sm text-mist mt-3"></p>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ABOUT ================= -->
+<section id="about" class="relative py-16 sm:py-24 border-t border-line/70">
+  <div class="max-w-6xl mx-auto px-5">
+    <h2 class="sec-title">Tentang turnamen</h2>
+    <div class="sec-bar"></div>
+    <div class="mt-10 grid lg:grid-cols-5 gap-8">
+      <div class="lg:col-span-3 space-y-4 text-slate-300 text-lg leading-relaxed max-w-prose">
+        <p>HIRE CUP VOL 2 dirancang dengan standar turnamen esports profesional berformat piala bergilir ala The International. Dilengkapi dengan update hasil real-time dan pengawasan ketat wasit.</p>
+        <p>Terbuka untuk tim berisi 5 pemain utama dan maksimal 2 cadangan. Tanpa batasan rank, beri kesempatan seluas-luasnya bagi tim komunitas untuk merebut piala bergilir.</p>
+      </div>
+      <div class="lg:col-span-2 grid grid-cols-2 gap-3 content-start">
+        <div class="frame chamfer-sm"><div class="inner chamfer-sm p-4"><p class="font-display text-5xl leading-none text-gold">32</p><p class="text-sm text-mist mt-1">slot tim</p></div></div>
+        <div class="frame chamfer-sm"><div class="inner chamfer-sm p-4"><p class="font-display text-5xl leading-none text-gold">5–7</p><p class="text-sm text-mist mt-1">player per tim</p></div></div>
+        <div class="frame chamfer-sm"><div class="inner chamfer-sm p-4"><p class="font-display text-5xl leading-none text-gold" id="feeAbout">Rp150.000</p><p class="text-sm text-mist mt-1">biaya pendaftaran</p></div></div>
+        <div class="frame chamfer-sm"><div class="inner chamfer-sm p-4"><p class="font-display text-5xl leading-none text-gold">5</p><p class="text-sm text-mist mt-1">babak final</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TIM TERVERIFIKASI ================= -->
+<section id="teams" class="relative py-16 sm:py-24 border-t border-line/70">
+  <div class="max-w-6xl mx-auto px-5">
+    <div class="flex flex-wrap items-end justify-between gap-4 mb-8">
+      <div>
+        <h2 class="sec-title">Tim Terverifikasi (Slot 32 Besar)</h2>
+        <div class="sec-bar"></div>
+        <p class="text-slate-300 mt-4 max-w-xl">Daftar tim yang mengambil data secara live dari database pendaftaran.</p>
+      </div>
+      <div class="frame chamfer-sm">
+        <div class="inner chamfer-sm px-5 py-2.5 text-center">
+          <span class="text-xs text-mist block">Status Slot</span>
+          <span class="font-display text-2xl text-gold" id="slotStatus">Memuat data...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid sm:grid-cols-2 md:grid-cols-4 gap-4" id="verifiedTeamsGrid">
+      <div class="text-mist text-sm py-4">Memuat daftar tim dari database...</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= HALL OF FAME ================= -->
+<section id="halloffame" class="relative py-16 sm:py-24 border-t border-line/70 bg-[#080c14]">
+  <div class="max-w-6xl mx-auto px-5">
+    <h2 class="sec-title">Hall of Fame - Hire Cup Vol 1</h2>
+    <div class="sec-bar"></div>
+    <p class="text-slate-300 mt-4 mb-10">Dokumentasi piala bergilir dan seluruh tim pemenang dari musim sebelumnya.</p>
+
+    <div class="grid lg:grid-cols-12 gap-8 items-start">
+      <div class="lg:col-span-5 space-y-4">
+        <div class="frame chamfer overflow-hidden">
+          <div class="inner chamfer p-2">
+            <img src="/images/champions-season-1.jpeg" alt="Juara Hire Cup Vol 1" class="w-full h-auto rounded object-cover shadow-lg max-h-[300px]">
+            <p class="text-xs text-mist text-center mt-2">Momen penyerahan piala bergilir Hire Cup Vol 1.</p>
+          </div>
+        </div>
+        <div class="frame chamfer overflow-hidden">
+          <div class="inner chamfer p-2">
+            <video controls class="w-full h-auto rounded shadow-lg max-h-[240px]">
+              <source src="/images/WhatsApp Video 2026-10-07 at 16.36.18.mp4" type="video/mp4">
+            </video>
+            <p class="text-xs text-mist text-center mt-2">Highlight & cuplikan keseruan Hire Cup Vol 1.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="lg:col-span-7 frame chamfer">
+        <div class="inner chamfer p-6 sm:p-8">
+          <h3 class="font-display text-3xl text-gold mb-4">Distribusi Juara & Hadiah Vol 1</h3>
+          <p class="text-sm text-mist mb-6">Format pembagian hadiah menyeluruh dari juara utama hingga peringkat 16 besar:</p>
+
+           <div class="space-y-4">
+            <!-- Juara 1 & 2 -->
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="p-3 bg-ink/90 border border-gold/40 rounded">
+                <span class="text-xs text-gold uppercase tracking-wider font-semibold">Juara 1 (Rp1.300.000)</span>
+                <p class="font-display text-2xl text-white mt-1">STRT</p>
+              </div>
+              <div class="p-3 bg-ink/90 border border-line rounded">
+                <span class="text-xs text-gold uppercase tracking-wider font-semibold">Juara 2 (Rp650.000)</span>
+                <p class="font-display text-2xl text-slate-200 mt-1">STRT</p>
+              </div>
+            </div>
+
+            <!-- Juara 3 & 4 -->
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div class="p-3 bg-ink/90 border border-line rounded">
+                <span class="text-xs text-gold uppercase tracking-wider font-semibold">Juara 3 (Rp300.000)</span>
+                <p class="font-display text-xl text-slate-200 mt-1">Jeruk Kipis</p>
+              </div>
+              <div class="p-3 bg-ink/90 border border-line rounded">
+                <span class="text-xs text-gold uppercase tracking-wider font-semibold">Juara 4 (Rp200.000)</span>
+                <p class="font-display text-xl text-slate-200 mt-1">Batang Pisang</p>
+              </div>
+            </div>
+
+            <!-- Peringkat 5 - 8 -->
+            <div class="p-3 bg-ink/80 border border-line rounded">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs text-gold font-semibold uppercase tracking-wider">Peringkat 5–8 (Rp100.000 / tim)</span>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-300">Felicity Coffe</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-300">Kopi Susu</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-300">Foreign</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-300">Livin X Kme</span>
+              </div>
+            </div>
+
+            <!-- Peringkat 9 - 16 -->
+            <div class="p-3 bg-ink/80 border border-line rounded">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs text-gold font-semibold uppercase tracking-wider">Peringkat 9–16 (Rp25.000 / tim)</span>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-400">Saba Gank</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-400">Foreign</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-400">Turnip</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-400">Hire Castilla</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-400">Turnip 2</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-400">Hire Family</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-400">Iqro 6</span>
+                <span class="px-2.5 py-1 bg-well text-xs border border-line rounded text-slate-400">Hire Lamasia</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= SISTEM TURNAMEN ================= -->
+<section id="sistem" class="relative py-16 sm:py-24 border-t border-line/70">
+  <div class="max-w-6xl mx-auto px-5">
+    <h2 class="sec-title">Sistem turnamen dan rules</h2>
+    <div class="sec-bar"></div>
+    <div class="mt-10 grid md:grid-cols-3 gap-5">
+      <div class="frame chamfer"><div class="inner chamfer p-6 h-full">
+        <h3 class="font-display text-3xl leading-none text-gold">Single Elimination</h3>
+        <p class="text-slate-300 mt-3">Sistem gugur standar turnamen major. Kalah sekali langsung tersingkir dari perebutan gelar juara.</p>
+      </div></div>
+      <div class="frame chamfer"><div class="inner chamfer p-6 h-full">
+        <h3 class="font-display text-3xl leading-none text-gold">Custom Draft Pick</h3>
+        <p class="text-slate-300 mt-3">Lobi custom resmi dengan sistem draft pick internasional. Sisi tim dan urutan ban/pick diatur oleh wasit.</p>
+      </div></div>
+      <div class="frame chamfer"><div class="inner chamfer p-6 h-full">
+        <h3 class="font-display text-3xl leading-none text-gold">Match Setting</h3>
+        <ul class="mt-3 text-sm divide-y divide-line border-y border-line">
+          <li class="flex justify-between py-1.5"><span>Babak 32 Besar</span><span class="text-gold font-semibold">Best of 1</span></li>
+          <li class="flex justify-between py-1.5"><span>Babak 16 Besar</span><span class="text-gold font-semibold">Best of 1</span></li>
+          <li class="flex justify-between py-1.5"><span>Perempat Final</span><span class="text-gold font-semibold">Best of 3</span></li>
+          <li class="flex justify-between py-1.5"><span>Semi Final</span><span class="text-gold font-semibold">Best of 3</span></li>
+          <li class="flex justify-between py-1.5"><span>Grand Final</span><span class="text-gold font-semibold">Best of 5</span></li>
+        </ul>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= BRACKET ================= -->
+<section id="bracket" class="relative py-16 sm:py-24 border-t border-line/70 bg-[#080c14]">
+  <div class="max-w-6xl mx-auto px-5">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h2 class="sec-title">Bracket pertandingan</h2>
+        <div class="sec-bar"></div>
+        <p class="text-slate-300 mt-4 max-w-xl">Bagan turnamen transparan berstandar Liquipedia. Klik tombol simulasi di samping untuk melihat alur kompetisi.</p>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" id="simBtn" class="btn-gold chamfer-sm px-5 py-2 text-2xl leading-none pt-2.5">Simulasikan bracket</button>
+        <button type="button" id="resetBracketBtn" class="btn-ghost chamfer-sm px-5 py-2 font-medium">Reset</button>
+      </div>
+    </div>
+    <div class="mt-8 overflow-x-auto bg-[#0b0f19] border border-line p-4 rounded-lg shadow-inner">
+      <div id="liquipediaBracket" class="liquipedia-bracket"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= DAFTAR ================= -->
+<section id="daftar" class="relative py-16 sm:py-24 border-t border-line/70 overflow-hidden">
+  <div class="absolute inset-0 grid-bg opacity-60" aria-hidden="true"></div>
+  <div class="relative max-w-3xl mx-auto px-5">
+    <h2 class="sec-title">Daftarkan timmu</h2>
+    <div class="sec-bar"></div>
+    <p class="text-slate-300 mt-4 mb-8">Isi data lengkap roster tim, lakukan pembayaran via WaroengPay, dan dapatkan link grup WhatsApp otomatis.</p>
+
+    <form id="regForm" onsubmit="return false;" novalidate class="space-y-8">
+      <div class="frame chamfer"><div class="inner chamfer p-5 sm:p-7">
+        <h3 class="font-display text-3xl sm:text-4xl leading-none mb-5">Data tim</h3>
+        <div class="grid sm:grid-cols-2 gap-x-5 gap-y-4">
+          <div>
+            <label class="lbl" for="teamName">Nama tim</label>
+            <input class="field" id="teamName" name="teamName" type="text" maxlength="30" autocomplete="off" placeholder="Contoh: Garuda Esports">
+            <p class="err" data-err="teamName"></p>
+          </div>
+          <div>
+            <label class="lbl" for="captainWa">WhatsApp kapten / perwakilan</label>
+            <input class="field" id="captainWa" name="captainWa" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="08123456789">
+            <p class="err" data-err="captainWa"></p>
+          </div>
+        </div>
+      </div></div>
+
+      <div class="frame chamfer"><div class="inner chamfer p-5 sm:p-7">
+        <div class="flex items-end justify-between gap-4 mb-1">
+          <h3 class="font-display text-3xl sm:text-4xl leading-none">Daftar player</h3>
+          <span id="playerCount" class="font-display text-2xl text-gold leading-none">5/7</span>
+        </div>
+        <p class="text-sm text-mist mb-5">Minimal 5, maksimal 7 player. Masukkan Nickname, User ID, dan Server ID game.</p>
+        <div id="playerList" class="space-y-3"></div>
+        <button type="button" id="addPlayerBtn" class="btn-ghost chamfer-sm mt-4 w-full sm:w-auto px-5 py-2.5 font-medium flex items-center justify-center gap-2">
+          <span class="text-gold text-xl leading-none">+</span> Tambah Player
+        </button>
+      </div></div>
+
+      <div>
+        <button type="submit" id="payBtn" class="btn-gold chamfer w-full py-4 text-2xl sm:text-3xl">Lanjut ke Pembayaran (WaroengPay Rp150.000)</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- ================= SPONSORS & PARTNERS ================= -->
+<section class="py-12 border-t border-line/70 bg-[#080c14]">
+  <div class="max-w-6xl mx-auto px-5 text-center">
+    <p class="text-xs uppercase tracking-widest text-mist mb-6 font-semibold">Didukung oleh Sponsor & Partner Resmi</p>
+    <div class="flex flex-wrap items-center justify-center gap-8 sm:gap-16 opacity-75">
+      <div class="flex items-center gap-2 text-slate-300 hover:text-gold transition"><span class="font-display text-3xl font-bold tracking-wider">HIRE COFFEE</span></div>
+      <div class="flex items-center gap-2 text-slate-300 hover:text-gold transition"><span class="font-display text-3xl font-bold tracking-wider">ZAYNSTORE</span></div>
+      <div class="flex items-center gap-2 text-slate-300 hover:text-gold transition"><span class="font-display text-3xl font-bold tracking-wider">AGUNG TOYOTA</span></div>
+      <div class="flex items-center gap-2 text-slate-300 hover:text-gold transition"><span class="font-display text-3xl font-bold tracking-wider">DIGITAL NUSANTARA</span></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="border-t border-line/70 py-8 bg-ink">
+  <div class="max-w-6xl mx-auto px-5 text-center text-sm text-mist">
+    <p>© <span id="yr"></span> HIRE ESPORT. Seluruh hak cipta dilindungi.</p>
+  </div>
+</footer>
+</div>
+
+<!-- ================= HALAMAN SUKSES & E-TICKET ================= -->
+<div id="view-success" class="hidden">
+  <section class="relative overflow-hidden min-h-screen py-14 sm:py-20">
+    <div class="absolute inset-0 grid-bg" aria-hidden="true"></div>
+
+    <div class="relative max-w-2xl mx-auto px-5">
+      <div class="w-16 h-16 bg-gold text-ink chamfer-sm flex items-center justify-center pop">
+        <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+      </div>
+      <h1 class="font-display font-bold text-5xl sm:text-7xl leading-[.85] mt-5 title-gold">Tim kamu resmi terdaftar!</h1>
+      <p class="mt-3 text-base sm:text-lg text-slate-300">Pembayaran WaroengPay sukses diverifikasi dan data masuk ke Google Sheets. Silakan unduh E-Ticket peserta dan bergabung ke grup WhatsApp.</p>
+
+      <div class="mt-6 flex flex-col sm:flex-row gap-3">
+        <div class="min-h-[50px] flex-1">
+          <div id="waPending" class="flex items-center gap-3 text-mist py-3">
+            <span class="w-5 h-5 border-2 border-gold border-t-transparent rounded-full spin"></span>
+            Menyiapkan tautan grup…
+          </div>
+          <a id="waBtn" href="#" target="_blank" rel="noopener noreferrer" class="hidden btn-gold chamfer pulse-gold w-full px-6 py-3 text-2xl text-center">
+            <span>Gabung Grup WhatsApp</span>
+          </a>
+        </div>
+        <button type="button" id="downloadTicketBtn" class="btn-ghost chamfer-sm px-6 py-3 text-xl font-display tracking-wider flex items-center justify-center gap-2 shrink-0">
+          📥 Unduh E-Ticket
+        </button>
+      </div>
+
+      <!-- KARTU E-TICKET EKSKLUSIF YANG BISA DI-DOWNLOAD -->
+      <div id="eTicketCard" class="frame chamfer mt-6 bg-[#0e1320] text-slate-100 overflow-hidden shadow-2xl">
+        <div class="inner chamfer p-6 sm:p-8 relative">
+          <div class="absolute right-4 top-4 text-gold/10 font-display text-8xl font-bold pointer-events-none">VOL 2</div>
+          
+          <div class="flex justify-between items-start border-b border-line pb-4 relative z-10">
+            <div>
+              <span class="text-xs text-gold uppercase tracking-widest font-semibold">Official E-Ticket · HIRE ESPORT</span>
+              <h2 class="font-display text-4xl sm:text-5xl text-white tracking-wide mt-1" id="sTeam">-</h2>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-mist block">Kode Pendaftaran</span>
+              <span class="font-display text-2xl text-gold" id="sCode">-</span>
+            </div>
+          </div>
+
+          <div class="my-4 text-sm text-slate-300 relative z-10">
+            <p>Kontak Kapten: <span id="sWa" class="text-white font-medium">-</span></p>
+            <p class="text-xs text-emerald-400 mt-0.5">● Status: Terverifikasi & Lunas (WaroengPay)</p>
+          </div>
+
+          <div class="mt-4 relative z-10">
+            <p class="text-xs text-mist uppercase tracking-wider mb-2 font-semibold">Roster Pemain Utama & Cadangan</p>
+            <ul id="sPlayers" class="divide-y divide-line/60 text-sm"></ul>
+          </div>
+
+          <div class="mt-6 pt-4 border-t border-line flex justify-between items-center text-xs text-mist relative z-10">
+            <span>HIRE CUP VOL 2 · Mobile Legends 5v5</span>
+            <span class="font-display tracking-widest text-gold text-sm">VERIFIED PASS</span>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" id="resetBtn" class="btn-ghost chamfer-sm mt-6 px-5 py-2.5 text-sm w-full">Kembali ke Beranda</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const CONFIG = {
+  tournamentName: 'HIRE ESPORT',
+  fee: 150000,
+  basePrize: 100000,
+  minPlayers: 5,
+  maxPlayers: 7,
+  closeAt: '2026-12-29T23:59:00+07:00',
+  waGroupLink: 'https://chat.whatsapp.com/GmzSH5WXrgFEBGMPrujC2O?mode=gi_t'
+};
+
+const $ = (s, r = document) => r.querySelector(s);  
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const pad = n => String(n).padStart(2, '0');
+
+// Sinkronisasi otomatis teks tombol pembayaran dengan CONFIG.fee
+document.addEventListener("DOMContentLoaded", () => {
+  const payBtn = $('#payBtn');
+  if (payBtn) {
+    payBtn.textContent = `Lanjut ke Pembayaran (WaroengPay Rp${CONFIG.fee.toLocaleString('id-ID')})`;
+  }
+});
+
+/* Live Fetch Daftar Tim & Hitung Compendium Prize Pool */
+async function loadVerifiedTeams() {
+  const grid = $('#verifiedTeamsGrid');
+  const statusEl = $('#slotStatus');
+  const prizeEl = $('#prizeTotal');
+  const poolCountEl = $('#poolTeamCount');
+
+  try {
+    const res = await fetch('/api/teams');
+    const teams = await res.json();
+    
+    statusEl.textContent = `${teams.length} / 32 Tim Terisi`;
+    poolCountEl.textContent = teams.length;
+
+    const dynamicPrize = CONFIG.basePrize + (teams.length * CONFIG.fee);
+    prizeEl.textContent = 'Rp' + dynamicPrize.toLocaleString('id-ID');
+
+    grid.innerHTML = '';
+
+    if (teams.length === 0) {
+      grid.innerHTML = '<div class="text-mist text-sm col-span-full py-4">Belum ada tim yang mendaftar. Jadilah yang pertama!</div>';
+      return;
+    }
+
+    teams.forEach(team => {
+      const card = document.createElement('div');
+      card.className = 'frame chamfer-sm pop';
+      card.innerHTML = `<div class="inner chamfer-sm p-4 flex items-center justify-between"><span class="font-semibold text-white truncate max-w-[160px]">${team.teamName}</span><span class="text-xs bg-gold/15 text-gold px-2 py-0.5 rounded shrink-0">Lunas</span></div>`;
+      grid.appendChild(card);
+    });
+  } catch (err) {
+    statusEl.textContent = 'Gagal memuat';
+    grid.innerHTML = '<div class="text-crimson text-sm col-span-full py-4">Gagal menyambung ke database tim.</div>';
+  }
+}
+loadVerifiedTeams();
+
+/* Countdown */
+(() => {
+  const target = new Date(CONFIG.closeAt).getTime();
+  $('#closeLabel').textContent = 'Batas pendaftaran: ' + new Date(target).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const set = (k, v) => $(`[data-cd="${k}"]`).textContent = v;
+  setInterval(() => {
+    const left = Math.max(0, target - Date.now());
+    const s = Math.floor(left / 1000);
+    set('d', pad(Math.floor(s / 86400)));
+    set('h', pad(Math.floor(s % 86400 / 3600)));
+    set('m', pad(Math.floor(s % 3600 / 60)));
+    set('s', pad(s % 60));
+  }, 1000);
+})();
+
+/* Bracket Liquipedia */
+(() => {
+  const ROUNDS = [{ name: '32 Besar', n: 16 }, { name: '16 Besar', n: 8 }, { name: 'Perempat Final', n: 4 }, { name: 'Semi Final', n: 2 }, { name: 'Grand Final', n: 1 }];
+  const SAMPLE = ['STRT', 'Jeruk Kipis', 'Batang Pisang', 'Felicity Coffe', 'Kopi Susu', 'Foreign', 'Livin X Kme', 'Saba Gank', 'Turnip', 'Hire Castilla', 'Turnip 2', 'Hire Family', 'Iqro 6', 'Hire Lamasia', 'Garuda', 'Borneo', 'Rimba', 'Kopi', 'Sultan', 'Nusa', 'Arjuna', 'Samudra', 'Cakra', 'Elang', 'Bara', 'Tirta', 'Wira', 'Pandawa', 'Naga', 'Banteng', 'Harimau', 'Komodo'];
+  const container = $('#liquipediaBracket');
+  function render() {
+    container.innerHTML = '';
+    ROUNDS.forEach(r => {
+      const col = document.createElement('div'); col.className = 'lp-round';
+      col.innerHTML = `<div class="lp-round-header">${r.name}</div>`;
+      for(let i=0; i<r.n; i++) {
+        col.innerHTML += `<div class="lp-matchup"><div class="lp-team"><span class="name">Slot Tim</span><span class="score">-</span></div><div class="lp-team"><span class="name">Slot Tim</span><span class="score">-</span></div></div>`;
+      }
+      container.appendChild(col);
+    });
+  }
+  $('#simBtn').addEventListener('click', () => {
+    const shuffled = [...SAMPLE].sort(() => Math.random() - .5);
+    container.innerHTML = '';
+    ROUNDS.forEach((r, ri) => {
+      const col = document.createElement('div'); col.className = 'lp-round';
+      col.innerHTML = `<div class="lp-round-header">${r.name}</div>`;
+      for(let i=0; i<r.n; i++) {
+        const t1 = ri === 0 ? shuffled[i*2] : 'Menunggu...';
+        const t2 = ri === 0 ? shuffled[i*2+1] : 'Menunggu...';
+        col.innerHTML += `<div class="lp-matchup"><div class="lp-team winner"><span class="name">${t1}</span><span class="score">1</span></div><div class="lp-team"><span class="name">${t2}</span><span class="score">0</span></div></div>`;
+      }
+      container.appendChild(col);
+    });
+  });
+  render();
+})();
+
+/* Player Dinamis */
+const list = $('#playerList');
+const addBtn = $('#addPlayerBtn');
+function playerRow() {
+  const row = document.createElement('div');
+  row.className = 'bg-well/60 border border-line p-3 pop';
+  row.innerHTML = `
+    <div class="flex justify-between mb-2"><span class="text-gold font-display text-xl row-title"></span><button type="button" class="remove-btn text-sm text-mist hover:text-crimson">Hapus</button></div>
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div class="col-span-2"><input class="field" data-f="nick" placeholder="Nickname" required></div>
+      <div class="col-span-2"><input class="field" data-f="uid" placeholder="User ID" required></div>
+      <div><input class="field" data-f="sid" placeholder="Server ID" required></div>
+    </div>`;
+  row.querySelector('.remove-btn').addEventListener('click', () => { if (list.children.length > CONFIG.minPlayers) { row.remove(); refreshPlayers(); } });
+  return row;
+}
+function refreshPlayers() {
+  const rows = [...list.children];
+  rows.forEach((r, i) => {
+    r.querySelector('.row-title').textContent = 'Player ' + (i + 1);
+    r.querySelector('.remove-btn').classList.toggle('hidden', rows.length <= CONFIG.minPlayers);
+  });
+  $('#playerCount').textContent = `${rows.length}/${CONFIG.maxPlayers}`;
+  addBtn.disabled = rows.length >= CONFIG.maxPlayers;
+}
+addBtn.addEventListener('click', () => { if (list.children.length < CONFIG.maxPlayers) { list.appendChild(playerRow()); refreshPlayers(); } });
+for(let i=0; i<CONFIG.minPlayers; i++) list.appendChild(playerRow());
+refreshPlayers();
+
+/* Form Submit & WaroengPay Gateway */
+$('#regForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const teamName = $('#teamName').value.trim();
+  const captainWa = $('#captainWa').value.trim();
+  const players = [];
+
+  [...list.children].forEach(row => {
+    players.push(`${row.querySelector('[data-f="nick"]').value} (${row.querySelector('[data-f="uid"]').value}/${row.querySelector('[data-f="sid"]').value})`);
+  });
+
+  if (!teamName || !captainWa) { alert('Harap isi Nama Tim dan WhatsApp Kapten!'); return; }
+
+  try {
+    const payBtn = $('#payBtn');
+    payBtn.textContent = 'Menghubungkan ke WaroengPay...';
+    payBtn.disabled = true;
+
+    const res = await fetch('/api/create-transaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamName, captainWa, fee: CONFIG.fee })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    if (data.paymentUrl) {
+      // Simpan data tim ke localStorage sebelum dilempar ke WaroengPay
+      localStorage.setItem('pendingTeam', JSON.stringify({ teamName, captainWa, players, orderId: data.orderId }));
+      window.location.href = data.paymentUrl;
+    } else {
+      throw new Error('URL pembayaran WaroengPay tidak ditemukan.');
+    }
+  } catch (err) {
+    alert("Terjadi kesalahan: " + err.message);
+    $('#payBtn').textContent = `Lanjut ke Pembayaran (WaroengPay Rp${CONFIG.fee.toLocaleString('id-ID')})`;
+    $('#payBtn').disabled = false;
+  }
+});
+
+// Pengecekan otomatis begitu user kembali dari halaman pembayaran WaroengPay
+window.addEventListener('DOMContentLoaded', async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  
+  if (urlParams.get('success') === 'true') {
+    const savedDataJSON = localStorage.getItem('pendingTeam');
+    
+    if (savedDataJSON) {
+      const savedData = JSON.parse(savedDataJSON);
+      
+      try {
+        // Kirim data ke Google Sheets otomatis
+        await fetch('/api/save-to-sheet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            teamName: savedData.teamName, 
+            whatsapp: savedData.captainWa, 
+            players: savedData.players 
+          })
+        });
+
+        loadVerifiedTeams();
+
+        // Tampilkan halaman sukses
+        $('#sTeam').textContent = savedData.teamName;
+        $('#sCode').textContent = 'TIM-' + (savedData.orderId ? savedData.orderId.slice(-6) : '2026');
+        $('#sWa').textContent = savedData.captainWa.slice(0, 4) + '••••' + savedData.captainWa.slice(-3);
+
+        const ul = $('#sPlayers');
+        ul.innerHTML = '';
+        savedData.players.forEach((pStr, i) => {
+          const li = document.createElement('li');
+          li.className = 'flex items-center justify-between py-2 text-sm';
+          const parts = pStr.split(' (');
+          li.innerHTML = `<span>${i + 1}. ${parts[0]}</span><span class="text-mist">${parts[1] ? parts[1].replace(')', '') : ''}</span>`;
+          ul.appendChild(li);
+        });
+
+        $('#site').classList.add('hidden');
+        $('#view-success').classList.remove('hidden');
+        window.scrollTo({ top: 0 });
+
+        $('#waBtn').href = CONFIG.waGroupLink;
+        setTimeout(() => {
+          $('#waPending').classList.add('hidden');
+          const btn = $('#waBtn');
+          btn.classList.remove('hidden');
+          btn.classList.add('pop');
+        }, 1200);
+
+        localStorage.removeItem('pendingTeam');
+      } catch (err) {
+        console.error("Gagal menyimpan data ke spreadsheet:", err);
+      }
+    }
+  }
+});
+
+// Fungsi Tombol Download E-Ticket Gambar
+$('#downloadTicketBtn').addEventListener('click', async () => {
+  const card = $('#eTicketCard');
+  try {
+    const canvas = await html2canvas(card, {
+      scale: 2,
+      backgroundColor: '#0b0f19',
+      logging: false
+    });
+    const image = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = image;
+    a.download = `ETicket-${$('#sTeam').textContent || 'Tim'}-HireCupVol2.png`;
+    a.click();
+  } catch (err) {
+    alert("Gagal mengunduh E-Ticket. Silakan screenshot manual.");
+  }
+});
+
+$('#resetBtn').addEventListener('click', () => { window.location.href = '/'; });
+</script>
+</body>
+</html>
