@@ -1,14 +1,13 @@
 {
   "name": "hire-cup-turnamen",
   "version": "1.0.0",
-  "description": "Backend Midtrans & Google Sheets untuk HIRE CUP VOL 2",
+  "description": "Website Turnamen HIRE CUP Vol 2",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "midtrans-client": "^1.3.1",
-    "node-fetch": "^2.7.0"
+    "express": "^4.18.2",
+    "node-fetch": "^2.6.9"
   }
 }
