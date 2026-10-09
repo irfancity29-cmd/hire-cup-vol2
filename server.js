@@ -9,17 +9,22 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Masukkan API Key / API Key Uji WaroengPay Anda di sini
 const WAROENG_API_KEY = 'wp_live__W4sG2fzj9Zfpmw6mRVWOUV-6HopikgtiKEXZKsZdkE';
 
-// Endpoint membuat tagihan sesuai dokumentasi WaroengPay dengan redirectUrl
+// Endpoint membuat tagihan sesuai dokumentasi WaroengPay dengan redirectUrl yang otomatis menyesuaikan domain
 app.post('/api/create-transaction', async (req, res) => {
     try {
         const { teamName, captainWa, fee } = req.body;
         const referenceId = 'INV-' + Date.now();
 
+        // Mendeteksi domain secara otomatis (baik di Railway maupun di Localhost)
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const host = req.get('host');
+        const baseUrl = `${protocol}://${host}`;
+
         const payload = {
             amount: Number(fee),
             reference: referenceId,
             description: `Pendaftaran Turnamen HIRE CUP Vol 2 - Tim ${teamName}`,
-            redirect_url: `http://localhost:3000/?success=true&ref=${referenceId}` // <--- Mengarahkan kembali ke website setelah bayar
+            redirect_url: `${baseUrl}/?success=true&ref=${referenceId}` // <--- Otomatis mengikuti domain saat ini
         };
 
         const response = await fetch('https://waroengpay.com/api/payments', {
@@ -109,6 +114,7 @@ app.get('/api/teams', async (req, res) => {
     }
 });
 
-app.listen(3000, () => {
-    console.log('Server berjalan di http://localhost:3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server berjalan di port ${PORT}`);
 });
