@@ -120,6 +120,6 @@ app.get('/api/teams', async (req, res) => {
 
 // Port dinamis yang wajib digunakan agar Railway tidak error 502 / Application failed to respond
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server berjalan di port ${PORT}`);
 });
