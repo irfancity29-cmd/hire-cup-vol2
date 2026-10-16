@@ -22,7 +22,7 @@ npm.cmd start
 
 ## Deploy di Railway
 Isi semua variabel di `.env.example` pada Railway → service → **Variables** SEBELUM push.
-Tanpa `MONGODB_URI`, `WAROENGPAY_API_KEY`, dan `ADMIN_PASSWORD`, server sengaja tidak mau jalan.
+Kalau ada yang belum beres (variabel kosong / database tidak tersambung), buka `https://DOMAIN-KAMU/api/health`.
 
 Di dashboard WaroengPay, set URL webhook ke `https://DOMAIN-KAMU/api/webhook/waroengpay`
 dan salin webhook secret ke `WAROENGPAY_WEBHOOK_SECRET`.

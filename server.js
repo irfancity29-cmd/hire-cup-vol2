@@ -13,7 +13,8 @@ const bracket = require('./lib/bracket');
 const { readSheetTeams } = require('./lib/sheet');
 const { checkPassword, issueToken, requireAdmin } = require('./lib/auth');
 
-checkConfig();
+const missingEnv = checkConfig();
+let dbError = '';
 
 const app = express();
 app.set('trust proxy', 1); // Railway berada di belakang proxy
@@ -30,6 +31,27 @@ function baseUrlOf(req) {
   if (config.publicBaseUrl) return config.publicBaseUrl;
   return `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
 }
+
+/* ============================ KESEHATAN ============================ */
+
+// Buka /api/health untuk melihat apa yang belum beres (hanya nama variabel, tidak ada nilai rahasia)
+app.get('/api/health', (_req, res) => {
+  const db = mongoose.connection.readyState === 1;
+  res.status(db && !missingEnv.length ? 200 : 503).json({
+    ok: db && !missingEnv.length,
+    database: db ? 'terhubung' : 'TIDAK terhubung' + (dbError ? ': ' + dbError : ''),
+    variabelBelumDiisi: missingEnv,
+    webhookSecret: config.waroengWebhookSecret ? 'ada' : 'kosong',
+    waGroupLink: config.waGroupLink ? 'ada' : 'kosong',
+    googleSheetUrl: config.googleSheetUrl ? 'ada' : 'kosong',
+  });
+});
+
+// Selama database belum tersambung, API menjawab 503 dengan pesan jelas (halaman tetap tampil)
+app.use('/api', (_req, res, next) => {
+  if (mongoose.connection.readyState === 1) return next();
+  res.status(503).json({ error: 'Server sedang tidak tersambung ke database. Coba lagi beberapa saat lagi.' });
+});
 
 /* ============================ PUBLIK ============================ */
 
@@ -351,14 +373,23 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Terjadi kesalahan di server.' });
 });
 
-mongoose
-  .connect(config.mongoUri)
-  .then(() => {
+// Port dinamis wajib agar Railway tidak error 502. Server langsung jalan walau database belum siap.
+app.listen(config.port, '0.0.0.0', () => console.log(`Server berjalan di port ${config.port}`));
+
+mongoose.set('bufferCommands', false);
+async function connectDb() {
+  if (!config.mongoUri) {
+    dbError = 'MONGODB_URI belum diisi';
+    return;
+  }
+  try {
+    await mongoose.connect(config.mongoUri, { serverSelectionTimeoutMS: 10000 });
+    dbError = '';
     console.log('Terhubung ke MongoDB:', mongoose.connection.name);
-    // Port dinamis wajib agar Railway tidak error 502
-    app.listen(config.port, '0.0.0.0', () => console.log(`Server berjalan di port ${config.port}`));
-  })
-  .catch((e) => {
-    console.error('Gagal konek MongoDB:', e.message);
-    process.exit(1);
-  });
+  } catch (e) {
+    dbError = e.message.slice(0, 200);
+    console.error('Gagal konek MongoDB (dicoba lagi 15 detik):', e.message);
+    setTimeout(connectDb, 15000);
+  }
+}
+connectDb();
