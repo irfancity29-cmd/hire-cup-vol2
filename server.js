@@ -15,6 +15,7 @@ const { checkPassword, issueToken, requireAdmin } = require('./lib/auth');
 
 const missingEnv = checkConfig();
 let dbError = '';
+const startedAt = new Date().toISOString();
 
 const app = express();
 app.set('trust proxy', 1); // Railway berada di belakang proxy
@@ -44,6 +45,10 @@ app.get('/api/health', (_req, res) => {
     webhookSecret: config.waroengWebhookSecret ? 'ada' : 'kosong',
     waGroupLink: config.waGroupLink ? 'ada' : 'kosong',
     googleSheetUrl: config.googleSheetUrl ? 'ada' : 'kosong',
+    // Membantu memastikan Variables diisi di service & environment Railway yang benar
+    railwayService: process.env.RAILWAY_SERVICE_NAME || null,
+    railwayEnvironment: process.env.RAILWAY_ENVIRONMENT_NAME || null,
+    serverStartedAt: startedAt,
   });
 });
 
