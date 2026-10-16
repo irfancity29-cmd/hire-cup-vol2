@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin Hire Cup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { ink: '#0b0f19', panel: '#131826', well: '#080c14', line: '#222b40', gold: '#f0b90b', crimson: '#ef4444', mist: '#94a3b8' },
+    fontFamily: { display: ['Teko', 'Impact', 'sans-serif'], body: ['Barlow', 'system-ui', 'sans-serif'] } } } };
+</script>
+<style>
+  body { background: #0b0f19; color: #f1f5f9; font-family: 'Barlow', system-ui, sans-serif; }
+  .field { background: #080c14; border: 1px solid #222b40; color: #f1f5f9; padding: .45rem .6rem; font-size: .95rem; border-radius: 4px; }
+  .field:focus { outline: none; border-color: #f0b90b; }
+  .btn { border: 1px solid #222b40; color: #cbd5e1; padding: .35rem .7rem; border-radius: 4px; font-size: .85rem; white-space: nowrap; }
+  .btn:hover:not(:disabled) { border-color: #f0b90b; color: #fff; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-gold { background: linear-gradient(180deg, #facc15, #ca8a04); color: #0f172a; border: 0; font-weight: 600; }
+  .btn-gold:hover:not(:disabled) { filter: brightness(1.08); color: #0f172a; }
+  .btn-red { border-color: rgba(239,68,68,.5); color: #fca5a5; }
+  .tab.active { color: #f0b90b; border-color: #f0b90b; }
+  .badge { font-size: .7rem; padding: .1rem .45rem; border-radius: 4px; font-weight: 600; }
+  .b-Paid { background: rgba(16,185,129,.15); color: #6ee7b7; }
+  .b-Pending { background: rgba(240,185,11,.15); color: #fcd34d; }
+  .b-Expired, .b-Failed { background: rgba(148,163,184,.12); color: #94a3b8; }
+  .match { background: #0e1320; border: 1px solid #222b40; border-radius: 6px; }
+</style>
+</head>
+<body class="min-h-screen antialiased">
+
+<!-- LOGIN -->
+<section id="loginView" class="hidden min-h-screen flex items-center justify-center px-4">
+  <form id="loginForm" class="w-full max-w-sm bg-panel border border-line rounded-lg p-6">
+    <h1 class="font-display text-4xl leading-none text-gold">Admin Hire Cup</h1>
+    <p class="text-sm text-mist mt-1 mb-5">Masuk dengan password admin.</p>
+    <label class="block text-sm text-slate-300 mb-1" for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" class="field w-full">
+    <p id="loginErr" class="text-sm text-red-400 mt-2 min-h-[1.25rem]"></p>
+    <button class="btn btn-gold w-full mt-2 py-2 text-base">Masuk</button>
+  </form>
+</section>
+
+<!-- DASHBOARD -->
+<section id="appView" class="hidden">
+  <header class="border-b border-line bg-panel/60">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+      <span class="font-display text-3xl leading-none pt-1">Admin <span class="text-gold">Hire Cup Vol 2</span></span>
+      <div class="flex items-center gap-2">
+        <a href="/" target="_blank" class="btn">Lihat website</a>
+        <button id="logoutBtn" class="btn">Keluar</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div id="stats" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+
+    <div class="mt-6 flex gap-5 border-b border-line">
+      <button class="tab active pb-2 border-b-2 border-transparent font-display text-2xl leading-none" data-tab="teams">Pendaftaran</button>
+      <button class="tab pb-2 border-b-2 border-transparent font-display text-2xl leading-none" data-tab="bracket">Bracket</button>
+    </div>
+
+    <!-- TAB PENDAFTARAN -->
+    <div id="tab-teams" class="mt-5">
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="filterStatus" class="field">
+          <option value="Paid">Lunas</option>
+          <option value="Pending">Menunggu bayar</option>
+          <option value="Expired,Failed">Kedaluwarsa / gagal</option>
+          <option value="">Semua</option>
+        </select>
+        <input id="search" class="field flex-1 min-w-[160px]" placeholder="Cari nama tim / kode / WA">
+        <button id="refreshBtn" class="btn">Muat ulang</button>
+        <button id="exportBtn" class="btn">Unduh CSV</button>
+        <button id="importBtn" class="btn" title="Ambil nama tim dari Google Sheets lama">Impor dari Sheets</button>
+        <button id="syncBtn" class="btn" title="Kirim ulang tim lunas yang belum tersalin ke Google Sheets">Sinkron ke Sheets</button>
+      </div>
+
+      <form id="addForm" class="mt-3 flex flex-wrap gap-2 items-center bg-panel border border-line rounded p-3">
+        <span class="text-sm text-mist">Tambah tim manual (langsung lunas):</span>
+        <input id="addName" class="field" placeholder="Nama tim" maxlength="30">
+        <input id="addWa" class="field" placeholder="WA kapten (opsional)" maxlength="16">
+        <button class="btn btn-gold">Tambah</button>
+      </form>
+
+      <p id="msg" class="text-sm mt-3 min-h-[1.25rem]"></p>
+      <div class="overflow-x-auto border border-line rounded">
+        <table class="w-full text-sm">
+          <thead class="bg-panel text-mist text-left">
+            <tr><th class="p-2">Tim</th><th class="p-2">Status</th><th class="p-2">WA Kapten</th><th class="p-2">Player</th><th class="p-2">Waktu</th><th class="p-2 text-right">Aksi</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB BRACKET -->
+    <div id="tab-bracket" class="hidden mt-5">
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="genRandomBtn" class="btn btn-gold">Undi bracket (acak)</button>
+        <button id="genOrderBtn" class="btn" title="Urutan seed = urutan tim lunas">Buat sesuai urutan daftar</button>
+        <button id="publishBtn" class="btn">Tampilkan di website</button>
+        <button id="deleteBracketBtn" class="btn btn-red">Hapus bracket</button>
+      </div>
+      <p class="text-xs text-mist mt-2">Bracket dibuat dari semua tim berstatus lunas. Tim yang tidak punya lawan otomatis lolos (BYE). Mengubah pemenang babak awal akan mengosongkan hasil babak berikutnya yang terdampak.</p>
+      <p id="bmsg" class="text-sm mt-3 min-h-[1.25rem]"></p>
+      <div id="bracketBox" class="flex gap-4 overflow-x-auto pb-4"></div>
+    </div>
+  </main>
+</section>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rupiah = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
+const fmtTime = (d) => (d ? new Date(d).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-');
+const STATUS_LABEL = { Paid: 'Lunas', Pending: 'Menunggu', Expired: 'Kedaluwarsa', Failed: 'Gagal' };
+
+let token = sessionStorage.getItem('adminToken') || '';
+let all = [];
+let bracketData = null;
+
+async function api(path, opts = {}) {
+  const res = await fetch('/api/admin' + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  if (res.status === 401 && path !== '/login') { logout(); throw new Error('Sesi habis, silakan login lagi.'); }
+  if (opts.raw) return res;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Gagal (' + res.status + ')');
+  return data;
+}
+
+function flash(el, text, ok = true) {
+  el.textContent = text;
+  el.className = el.className.replace(/text-(red|emerald)-\d+/g, '') + (ok ? ' text-emerald-400' : ' text-red-400');
+}
+
+function show(view) {
+  $('#loginView').classList.toggle('hidden', view !== 'login');
+  $('#appView').classList.toggle('hidden', view !== 'app');
+}
+function logout() {
+  token = '';
+  sessionStorage.removeItem('adminToken');
+  show('login');
+}
+
+$('#loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#loginErr').textContent = '';
+  try {
+    const { token: t } = await api('/login', { method: 'POST', body: { password: $('#pw').value } });
+    token = t;
+    sessionStorage.setItem('adminToken', t);
+    $('#pw').value = '';
+    start();
+  } catch (err) {
+    $('#loginErr').textContent = err.message;
+  }
+});
+$('#logoutBtn').addEventListener('click', logout);
+
+$$('.tab').forEach((t) => t.addEventListener('click', () => {
+  $$('.tab').forEach((x) => x.classList.toggle('active', x === t));
+  $('#tab-teams').classList.toggle('hidden', t.dataset.tab !== 'teams');
+  $('#tab-bracket').classList.toggle('hidden', t.dataset.tab !== 'bracket');
+  if (t.dataset.tab === 'bracket') loadBracket();
+}));
+
+/* ---------- Pendaftaran ---------- */
+async function loadRegs() {
+  const { stats, registrations } = await api('/registrations');
+  all = registrations;
+  const unsynced = all.filter((r) => r.status === 'Paid' && r.source === 'web' && !r.sheetSynced).length;
+  $('#stats').innerHTML = [
+    ['Tim lunas', stats.paidCount],
+    ['Menunggu bayar', stats.pendingCount],
+    ['Prize pool', rupiah(stats.prizeTotal)],
+    ['Belum tersalin ke Sheets', unsynced],
+  ].map(([k, v]) => `<div class="bg-panel border border-line rounded p-3"><p class="text-xs text-mist">${k}</p><p class="font-display text-3xl leading-none mt-1 text-gold">${esc(v)}</p></div>`).join('');
+  renderRows();
+}
+
+function renderRows() {
+  const want = $('#filterStatus').value.split(',').filter(Boolean);
+  const q = $('#search').value.trim().toLowerCase();
+  const rows = all.filter((r) => (!want.length || want.includes(r.status)) &&
+    (!q || [r.teamName, r.orderId, r.captainWa].some((v) => String(v || '').toLowerCase().includes(q))));
+  if (!rows.length) {
+    $('#rows').innerHTML = '<tr><td colspan="6" class="p-4 text-center text-mist">Tidak ada data.</td></tr>';
+    return;
+  }
+  $('#rows').innerHTML = rows.map((r) => `
+    <tr class="border-t border-line align-top">
+      <td class="p-2">
+        <p class="font-semibold text-white">${esc(r.teamName)} ${r.hidden ? '<span class="badge b-Expired">disembunyikan</span>' : ''}</p>
+        <p class="text-xs text-mist">${esc(r.orderId)} · ${esc(r.source)}${r.status === 'Paid' && r.source === 'web' && !r.sheetSynced ? ' · <span class="text-amber-300">belum di Sheets</span>' : ''}</p>
+      </td>
+      <td class="p-2"><span class="badge b-${esc(r.status)}">${STATUS_LABEL[r.status] || esc(r.status)}</span>${r.paidLate ? '<p class="text-xs text-amber-300 mt-1">bayar telat</p>' : ''}</td>
+      <td class="p-2">${r.captainWa ? `<a class="text-gold hover:underline" target="_blank" rel="noopener" href="https://wa.me/${esc(r.captainWa)}">${esc(r.captainWa)}</a>` : '-'}</td>
+      <td class="p-2 text-xs text-slate-300">${(r.players || []).map((p, i) => `${i + 1}. ${esc(p.nick)} <span class="text-mist">${esc(p.uid)} (${esc(p.sid)})</span>`).join('<br>') || '-'}</td>
+      <td class="p-2 text-xs text-mist">Daftar: ${fmtTime(r.createdAt)}${r.paidAt ? '<br>Lunas: ' + fmtTime(r.paidAt) : ''}</td>
+      <td class="p-2">
+        <div class="flex flex-wrap gap-1 justify-end">
+          <button class="btn" data-act="rename" data-id="${esc(r.orderId)}">Ganti nama</button>
+          <button class="btn" data-act="hide" data-id="${esc(r.orderId)}">${r.hidden ? 'Tampilkan' : 'Sembunyikan'}</button>
+          ${r.status !== 'Paid' && r.gatewayId ? `<button class="btn" data-act="check" data-id="${esc(r.orderId)}">Cek bayar</button>` : ''}
+          ${r.status !== 'Paid' ? `<button class="btn" data-act="paid" data-id="${esc(r.orderId)}">Tandai lunas</button>` : ''}
+          <button class="btn btn-red" data-act="delete" data-id="${esc(r.orderId)}">Hapus</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+$('#rows').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const r = all.find((x) => x.orderId === b.dataset.id);
+  const msg = $('#msg');
+  try {
+    if (b.dataset.act === 'rename') {
+      const name = prompt('Nama tim baru:', r.teamName);
+      if (!name || name === r.teamName) return;
+      await api('/registrations/' + r.orderId, { method: 'PATCH', body: { teamName: name } });
+      flash(msg, 'Nama tim diganti.');
+    } else if (b.dataset.act === 'hide') {
+      await api('/registrations/' + r.orderId, { method: 'PATCH', body: { hidden: !r.hidden } });
+      flash(msg, r.hidden ? 'Tim ditampilkan lagi di website.' : 'Tim disembunyikan dari daftar publik (tetap terhitung lunas).');
+    } else if (b.dataset.act === 'check') {
+      b.disabled = true;
+      const out = await api('/registrations/' + r.orderId + '/check', { method: 'POST' });
+      flash(msg, `Status di WaroengPay: ${out.gatewayStatus}. Status sekarang: ${STATUS_LABEL[out.status] || out.status}. ${out.note || ''}`, !out.note);
+    } else if (b.dataset.act === 'paid') {
+      if (!confirm(`Tandai "${r.teamName}" LUNAS secara manual? Lakukan hanya kalau uangnya sudah kamu terima.`)) return;
+      await api('/registrations/' + r.orderId + '/mark-paid', { method: 'POST' });
+      flash(msg, 'Ditandai lunas.');
+    } else if (b.dataset.act === 'delete') {
+      if (!confirm(`Hapus pendaftaran "${r.teamName}" (${STATUS_LABEL[r.status]})? Tidak bisa dibatalkan.`)) return;
+      await api('/registrations/' + r.orderId, { method: 'DELETE' });
+      flash(msg, 'Pendaftaran dihapus.');
+    }
+    await loadRegs();
+  } catch (err) {
+    flash(msg, err.message, false);
+    b.disabled = false;
+  }
+});
+
+$('#filterStatus').addEventListener('change', renderRows);
+$('#search').addEventListener('input', renderRows);
+$('#refreshBtn').addEventListener('click', () => loadRegs().catch((e) => flash($('#msg'), e.message, false)));
+
+$('#addForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/registrations', { method: 'POST', body: { teamName: $('#addName').value, captainWa: $('#addWa').value } });
+    $('#addName').value = $('#addWa').value = '';
+    flash($('#msg'), 'Tim ditambahkan.');
+    await loadRegs();
+  } catch (err) {
+    flash($('#msg'), err.message, false);
+  }
+});
+
+$('#importBtn').addEventListener('click', async () => {
+  if (!confirm('Impor nama tim dari Google Sheets lama sebagai tim lunas? Nama yang sudah ada dilewati.')) return;
+  try {
+    const out = await api('/import-sheet', { method: 'POST' });
+    flash($('#msg'), `Ditemukan ${out.found} tim di Sheets, ${out.added} ditambahkan.`);
+    await loadRegs();
+  } catch (err) {
+    flash($('#msg'), err.message, false);
+  }
+});
+
+$('#syncBtn').addEventListener('click', async () => {
+  try {
+    const out = await api('/sync-sheet', { method: 'POST' });
+    flash($('#msg'), `Dicoba ${out.tried} tim, sisa belum tersalin: ${out.left}.`, out.left === 0);
+    await loadRegs();
+  } catch (err) {
+    flash($('#msg'), err.message, false);
+  }
+});
+
+$('#exportBtn').addEventListener('click', async () => {
+  try {
+    const res = await api('/export.csv', { raw: true });
+    if (!res.ok) throw new Error('Gagal mengunduh CSV.');
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tim-hire-cup-vol2.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    flash($('#msg'), err.message, false);
+  }
+});
+
+/* ---------- Bracket ---------- */
+async function loadBracket() {
+  try {
+    bracketData = await api('/bracket');
+    renderBracket();
+  } catch (err) {
+    flash($('#bmsg'), err.message, false);
+  }
+}
+
+function renderBracket() {
+  const b = bracketData;
+  $('#publishBtn').textContent = b.published ? 'Sembunyikan dari website' : 'Tampilkan di website';
+  $('#publishBtn').disabled = !b.exists;
+  $('#deleteBracketBtn').disabled = !b.exists;
+  if (!b.exists) {
+    $('#bracketBox').innerHTML = '<p class="text-mist text-sm">Belum ada bracket. Klik "Undi bracket" setelah pendaftaran ditutup.</p>';
+    return;
+  }
+  $('#bracketBox').innerHTML = b.rounds.map((round, ri) => `
+    <div class="min-w-[250px] flex flex-col gap-3">
+      <p class="font-display text-2xl text-gold leading-none border-b border-line pb-1">${esc(round.name)}</p>
+      ${round.matches.map((m, mi) => matchCard(m, ri, mi)).join('')}
+    </div>`).join('');
+}
+
+function matchCard(m, ri, mi) {
+  const ready = m.a && m.b;
+  const side = (t, score, key) => `
+    <div class="flex items-center gap-2 ${t && m.winner === t.id ? 'text-gold font-semibold' : 'text-slate-300'}">
+      <span class="flex-1 truncate" title="${t ? esc(t.name) : ''}">${t ? esc(t.name) : (m.winner ? 'BYE' : 'Menunggu…')}</span>
+      ${ready ? `<input class="field w-12 text-center py-1" inputmode="numeric" maxlength="1" data-score="${key}" value="${score ?? ''}">` : ''}
+    </div>`;
+  return `
+    <div class="match p-2 text-sm space-y-1" data-r="${ri}" data-i="${mi}">
+      <p class="text-[11px] text-mist">Match ${mi + 1}</p>
+      ${side(m.a, m.scoreA, 'a')}
+      ${side(m.b, m.scoreB, 'b')}
+      ${ready ? `
+      <div class="flex gap-1 pt-1">
+        <select class="field flex-1 py-1 text-xs" data-winner>
+          <option value="">Belum ada pemenang</option>
+          <option value="${esc(m.a.id)}" ${m.winner === m.a.id ? 'selected' : ''}>Menang: ${esc(m.a.name)}</option>
+          <option value="${esc(m.b.id)}" ${m.winner === m.b.id ? 'selected' : ''}>Menang: ${esc(m.b.name)}</option>
+        </select>
+        <button class="btn btn-gold text-xs" data-save>Simpan</button>
+      </div>` : ''}
+    </div>`;
+}
+
+$('#bracketBox').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-save]');
+  if (!btn) return;
+  const card = btn.closest('.match');
+  const body = {
+    round: Number(card.dataset.r),
+    index: Number(card.dataset.i),
+    scoreA: card.querySelector('[data-score="a"]').value,
+    scoreB: card.querySelector('[data-score="b"]').value,
+    winner: card.querySelector('[data-winner]').value || null,
+  };
+  // Isi pemenang otomatis dari skor kalau belum dipilih
+  if (!body.winner && body.scoreA !== '' && body.scoreB !== '' && body.scoreA !== body.scoreB) {
+    const m = bracketData.rounds[body.round].matches[body.index];
+    body.winner = Number(body.scoreA) > Number(body.scoreB) ? m.a.id : m.b.id;
+  }
+  try {
+    btn.disabled = true;
+    await api('/bracket/match', { method: 'POST', body });
+    flash($('#bmsg'), 'Hasil match disimpan.');
+    await loadBracket();
+  } catch (err) {
+    flash($('#bmsg'), err.message, false);
+    btn.disabled = false;
+  }
+});
+
+async function generate(random) {
+  const exists = bracketData && bracketData.exists;
+  if (!confirm((exists ? 'Bracket lama beserta semua hasilnya akan DIGANTI. ' : '') + 'Buat bracket dari semua tim lunas sekarang?')) return;
+  try {
+    const out = await api('/bracket/generate', { method: 'POST', body: { random } });
+    flash($('#bmsg'), `Bracket dibuat untuk ${out.teams} tim. Belum tampil di website sampai kamu klik "Tampilkan di website".`);
+    await loadBracket();
+  } catch (err) {
+    flash($('#bmsg'), err.message, false);
+  }
+}
+$('#genRandomBtn').addEventListener('click', () => generate(true));
+$('#genOrderBtn').addEventListener('click', () => generate(false));
+
+$('#publishBtn').addEventListener('click', async () => {
+  try {
+    await api('/bracket/publish', { method: 'POST', body: { published: !bracketData.published } });
+    flash($('#bmsg'), bracketData.published ? 'Bracket disembunyikan dari website.' : 'Bracket tampil di website.');
+    await loadBracket();
+  } catch (err) {
+    flash($('#bmsg'), err.message, false);
+  }
+});
+
+$('#deleteBracketBtn').addEventListener('click', async () => {
+  if (!confirm('Hapus bracket beserta semua hasil pertandingan?')) return;
+  try {
+    await api('/bracket', { method: 'DELETE' });
+    flash($('#bmsg'), 'Bracket dihapus.');
+    await loadBracket();
+  } catch (err) {
+    flash($('#bmsg'), err.message, false);
+  }
+});
+
+function start() {
+  show('app');
+  loadRegs().catch((e) => flash($('#msg'), e.message, false));
+}
+if (token) start(); else show('login');
+</script>
+</body>
+</html>

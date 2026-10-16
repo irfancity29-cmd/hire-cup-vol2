@@ -1,125 +1,364 @@
-const express = require('express');
-const fetch = require('node-fetch');
 const path = require('path');
+const crypto = require('crypto');
+const express = require('express');
+const mongoose = require('mongoose');
+const rateLimit = require('express-rate-limit');
+
+const { config, checkConfig } = require('./lib/config');
+const { Registration, Bracket } = require('./lib/models');
+const { createPayment, verifyWebhook, getPayment } = require('./lib/waroengpay');
+const { validateRegistration, normalizeWa, teamKeyOf, clean } = require('./lib/validate');
+const reg = require('./lib/registration');
+const bracket = require('./lib/bracket');
+const { readSheetTeams } = require('./lib/sheet');
+const { checkPassword, issueToken, requireAdmin } = require('./lib/auth');
+
+checkConfig();
 
 const app = express();
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.set('trust proxy', 1); // Railway berada di belakang proxy
+// rawBody disimpan untuk verifikasi signature webhook
+app.use(express.json({ limit: '50kb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
+app.use(express.static(path.join(__dirname, 'public'), { extensions: ['html'] }));
 
-// Masukkan API Key / API Key Uji WaroengPay Anda di sini
-const WAROENG_API_KEY = 'wp_live__W4sG2fzj9Zfpmw6mRVWOUV-6HopikgtiKEXZKsZdkE';
+const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const newOrderId = () => 'HC2-' + crypto.randomBytes(6).toString('hex').toUpperCase();
+const maskWa = (wa) => (wa ? wa.slice(0, 4) + '••••' + wa.slice(-3) : '-');
+const displayName = (r) => (r.hidden ? 'Tim (disembunyikan)' : r.teamName);
 
-// Endpoint membuat tagihan sesuai dokumentasi WaroengPay dengan redirectUrl yang otomatis menyesuaikan domain
-app.post('/api/create-transaction', async (req, res) => {
-    try {
-        const { teamName, captainWa, fee } = req.body;
-        const referenceId = 'INV-' + Date.now();
+function baseUrlOf(req) {
+  if (config.publicBaseUrl) return config.publicBaseUrl;
+  return `${req.get('x-forwarded-proto') || req.protocol}://${req.get('host')}`;
+}
 
-        // Mendeteksi domain secara otomatis (baik di Railway maupun di Localhost)
-        const protocol = req.headers['x-forwarded-proto'] || 'http';
-        const host = req.get('host');
-        const baseUrl = `${protocol}://${host}`;
+/* ============================ PUBLIK ============================ */
 
-        const payload = {
-            amount: Number(fee),
-            reference: referenceId,
-            description: `Pendaftaran Turnamen HIRE CUP Vol 2 - Tim ${teamName}`,
-            redirect_url: `${baseUrl}/?success=true&ref=${referenceId}` // <--- Otomatis mengikuti domain saat ini
-        };
+app.get('/api/config', wrap(async (_req, res) => {
+  const s = await reg.stats();
+  res.json({
+    fee: config.fee,
+    basePrize: config.basePrize,
+    prizePerTeam: config.prizePerTeam,
+    maxTeams: config.maxTeams,
+    minPlayers: config.minPlayers,
+    maxPlayers: config.maxPlayers,
+    closeAt: config.closeAt,
+    paidCount: s.paidCount,
+    prizeTotal: s.prizeTotal,
+    closedReason: reg.closedReason(s),
+  });
+}));
 
-        const response = await fetch('https://waroengpay.com/api/payments', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${WAROENG_API_KEY}`
-            },
-            body: JSON.stringify(payload)
-        });
+app.get('/api/teams', wrap(async (_req, res) => {
+  const teams = await Registration.find({ status: 'Paid', hidden: false }).sort({ paidAt: 1 }).select('teamName -_id').lean();
+  res.json(teams.map((t) => ({ teamName: t.teamName })));
+}));
 
-        const data = await response.json();
-        console.log("Respons WaroengPay:", data); // Membantu melihat struktur respons jika terjadi kendala
-        
-        // Deteksi fleksibel berbagai format key URL pembayaran dari API WaroengPay
-        const paymentUrl = data.pay_url || data.payUrl || data.payment_url || data.paymentUrl || data.url;
-        
-        if (response.ok && paymentUrl) {
-            res.json({ 
-                paymentUrl: paymentUrl, 
-                orderId: referenceId 
-            });
-        } else {
-            throw new Error(data.error || data.message || 'Gagal membuat tagihan di WaroengPay');
-        }
-    } catch (error) {
-        console.error("WaroengPay Error:", error);
-        res.status(500).json({ error: error.message });
-    }
+const registerLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Terlalu banyak percobaan. Coba lagi beberapa menit lagi.' } });
+
+app.post('/api/register', registerLimiter, wrap(async (req, res) => {
+  const { errors, value } = validateRegistration(req.body || {});
+  if (Object.keys(errors).length) return res.status(400).json({ error: 'Data pendaftaran belum lengkap / tidak valid.', fields: errors });
+
+  await reg.expireStale();
+  const s = await reg.stats();
+  const closed = reg.closedReason(s);
+  if (closed) return res.status(409).json({ error: closed });
+  if (s.paidCount + s.pendingCount >= config.maxTeams) {
+    return res.status(409).json({ error: 'Slot tersisa sedang dalam proses pembayaran tim lain. Coba lagi 30 menit lagi.' });
+  }
+
+  const taken = await Registration.findOne({ teamKey: value.teamKey, $or: [{ status: 'Paid' }, reg.activePendingFilter()] });
+  if (taken) {
+    const msg = taken.status === 'Paid' ? 'Nama tim sudah terdaftar.' : 'Nama tim ini sedang dalam proses pembayaran. Selesaikan pembayaran sebelumnya atau tunggu 30 menit.';
+    return res.status(409).json({ error: msg, fields: { teamName: msg } });
+  }
+
+  const orderId = newOrderId();
+  const doc = await Registration.create({
+    orderId,
+    ...value,
+    amount: config.fee,
+    expiresAt: new Date(Date.now() + config.paymentExpiresMinutes * 60 * 1000),
+  });
+
+  try {
+    const base = baseUrlOf(req);
+    const pay = await createPayment({
+      orderId,
+      amount: config.fee,
+      description: `Pendaftaran HIRE CUP Vol 2 - Tim ${value.teamName}`,
+      redirectUrl: `${base}/?order=${orderId}`,
+      callbackUrl: `${base}/api/webhook/waroengpay`,
+    });
+    await Registration.updateOne({ _id: doc._id }, {
+      gatewayId: pay.gatewayId,
+      payUrl: pay.payUrl,
+      payAmount: pay.payAmount,
+      ...(pay.expiresAt ? { expiresAt: pay.expiresAt } : {}),
+    });
+    res.json({ orderId, payUrl: pay.payUrl });
+  } catch (e) {
+    console.error('Gagal membuat tagihan Waroeng Pay:', e.message);
+    await Registration.updateOne({ _id: doc._id }, { status: 'Failed' });
+    res.status(502).json({ error: 'Gagal membuat tagihan pembayaran. Coba lagi sebentar lagi.' });
+  }
+}));
+
+// Dipanggil halaman setelah kembali dari Waroeng Pay. Link grup WA hanya diberikan jika sudah LUNAS.
+app.get('/api/registrations/:orderId', wrap(async (req, res) => {
+  let r = await Registration.findOne({ orderId: String(req.params.orderId) });
+  if (!r) return res.status(404).json({ error: 'Pendaftaran tidak ditemukan.' });
+  if (r.status !== 'Paid') r = await reg.reconcile(r);
+  const paid = r.status === 'Paid';
+  res.json({
+    orderId: r.orderId,
+    status: r.status,
+    teamName: r.teamName,
+    captainWa: maskWa(r.captainWa),
+    players: paid ? r.players.map((p) => ({ nick: p.nick, uid: p.uid, sid: p.sid })) : [],
+    payUrl: r.status === 'Pending' ? r.payUrl : null,
+    waGroupLink: paid ? config.waGroupLink : null,
+  });
+}));
+
+app.post('/api/webhook/waroengpay', wrap(async (req, res) => {
+  const raw = req.rawBody ? req.rawBody.toString('utf8') : '';
+  const check = verifyWebhook({ rawBody: raw, timestamp: req.get('X-WaroengPay-Timestamp'), signature: req.get('X-Signature') });
+  if (!check.ok) {
+    console.warn('Webhook ditolak:', check.reason);
+    return res.status(401).json({ success: false });
+  }
+  const event = req.body || {};
+  if (event.event === 'ping') return res.json({ success: true, pong: true });
+  const data = event.data || {};
+  const r = await Registration.findOne({ gatewayId: data.id });
+  if (!r) return res.json({ success: true, ignored: 'unknown_payment' });
+  const statusByEvent = { 'payment.paid': 'paid', 'payment.expired': 'expired', 'payment.cancelled': 'cancelled' };
+  if (statusByEvent[event.event]) {
+    await reg.applyGatewayStatus(r, { ...data, status: statusByEvent[event.event], livemode: event.livemode ?? data.livemode });
+  }
+  res.json({ success: true });
+}));
+
+async function bracketView({ admin = false } = {}) {
+  const b = await Bracket.findOne({ key: 'main' }).lean();
+  if (!b || (!admin && !b.published)) return { exists: !!b, published: false, rounds: [] };
+  const ids = [...new Set(b.rounds.flat().flatMap((m) => [m.a, m.b]).filter(Boolean))];
+  const regs = await Registration.find({ orderId: { $in: ids } }).select('orderId teamName hidden').lean();
+  const names = Object.fromEntries(regs.map((r) => [r.orderId, admin ? r.teamName : displayName(r)]));
+  return {
+    exists: true,
+    published: b.published,
+    rounds: b.rounds.map((matches) => ({
+      name: bracket.roundName(matches.length),
+      matches: matches.map((m) => ({
+        a: m.a ? { id: m.a, name: names[m.a] || '?' } : null,
+        b: m.b ? { id: m.b, name: names[m.b] || '?' } : null,
+        scoreA: m.scoreA,
+        scoreB: m.scoreB,
+        winner: m.winner,
+      })),
+    })),
+  };
+}
+
+app.get('/api/bracket', wrap(async (_req, res) => res.json(await bracketView())));
+
+/* ============================ ADMIN ============================ */
+
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, message: { error: 'Terlalu banyak percobaan login. Tunggu 15 menit.' } });
+
+app.post('/api/admin/login', loginLimiter, (req, res) => {
+  if (!checkPassword((req.body || {}).password)) return res.status(401).json({ error: 'Password salah.' });
+  res.json({ token: issueToken() });
 });
 
-// Endpoint untuk menyimpan data ke Google Sheets
-app.post('/api/save-to-sheet', async (req, res) => {
-    try {
-        const { teamName, whatsapp, players } = req.body;
-        const payload = {
-            teamName: teamName,
-            whatsapp: whatsapp,
-            player1: players[0] || "",
-            player2: players[1] || "",
-            player3: players[2] || "",
-            player4: players[3] || "",
-            player5: players[4] || "",
-            player6: players[5] || "-",
-            player7: players[6] || "-",
-            status: "Lunas"
-        };
-        const googleSheetUrl = 'https://script.google.com/macros/s/AKfycbwaW0WSKHJZ_FjRoyTMrn-IoKwEfQblFVSere5PBQ3PGaCzOe_CfWRGMY22t8wXsrdkjA/exec';
-        await fetch(googleSheetUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+const admin = express.Router();
+admin.use(requireAdmin);
+
+admin.get('/registrations', wrap(async (_req, res) => {
+  await reg.expireStale();
+  const list = await Registration.find().sort({ createdAt: -1 }).lean();
+  res.json({ stats: await reg.stats(), registrations: list.map(({ _id, __v, teamKey, ...r }) => r) });
+}));
+
+const findReg = async (req, res) => {
+  const r = await Registration.findOne({ orderId: String(req.params.orderId) });
+  if (!r) res.status(404).json({ error: 'Pendaftaran tidak ditemukan.' });
+  return r;
+};
+
+admin.patch('/registrations/:orderId', wrap(async (req, res) => {
+  const r = await findReg(req, res);
+  if (!r) return;
+  const b = req.body || {};
+  if (b.teamName !== undefined) {
+    const name = clean(b.teamName, 60);
+    if (name.length < 2 || name.length > 30) return res.status(400).json({ error: 'Nama tim 2–30 karakter.' });
+    const dup = await Registration.findOne({ _id: { $ne: r._id }, teamKey: teamKeyOf(name), status: 'Paid' });
+    if (dup) return res.status(409).json({ error: 'Nama tim sudah dipakai tim lain.' });
+    r.teamName = name;
+    r.teamKey = teamKeyOf(name);
+  }
+  if (b.captainWa !== undefined) {
+    const wa = normalizeWa(b.captainWa);
+    if (!wa) return res.status(400).json({ error: 'Nomor WhatsApp tidak valid.' });
+    r.captainWa = wa;
+  }
+  if (b.hidden !== undefined) r.hidden = !!b.hidden;
+  await r.save();
+  res.json({ ok: true });
+}));
+
+// Konfirmasi manual (mis. tim bayar lewat transfer langsung ke panitia)
+admin.post('/registrations/:orderId/mark-paid', wrap(async (req, res) => {
+  const r = await findReg(req, res);
+  if (!r) return;
+  await reg.markPaid(r);
+  res.json({ ok: true });
+}));
+
+admin.post('/registrations/:orderId/check', wrap(async (req, res) => {
+  const r = await findReg(req, res);
+  if (!r) return;
+  if (!r.gatewayId) return res.status(400).json({ error: 'Pendaftaran ini tidak punya tagihan Waroeng Pay.' });
+  const p = await getPayment(r.gatewayId).catch((e) => ({ error: e.message }));
+  if (p.error) return res.status(502).json({ error: 'Gagal cek ke Waroeng Pay: ' + p.error });
+  const after = await reg.applyGatewayStatus(r, p);
+  const note = p.status === 'paid' && after.status !== 'Paid'
+    ? `Nominal pokok di WaroengPay (${p.base_amount}) tidak sama dengan biaya (${r.amount}), jadi tidak otomatis lunas. Periksa manual.`
+    : '';
+  res.json({ ok: true, gatewayStatus: p.status, status: after.status, note });
+}));
+
+async function inBracket(orderId) {
+  const b = await Bracket.findOne({ key: 'main' }).lean();
+  return !!b && b.rounds.flat().some((m) => m.a === orderId || m.b === orderId);
+}
+
+admin.delete('/registrations/:orderId', wrap(async (req, res) => {
+  const r = await findReg(req, res);
+  if (!r) return;
+  if (await inBracket(r.orderId)) return res.status(409).json({ error: 'Tim ini ada di bracket. Hapus/buat ulang bracket dulu.' });
+  await r.deleteOne();
+  res.json({ ok: true });
+}));
+
+// Tambah tim manual (langsung lunas)
+admin.post('/registrations', wrap(async (req, res) => {
+  const b = req.body || {};
+  const name = clean(b.teamName, 60);
+  if (name.length < 2 || name.length > 30) return res.status(400).json({ error: 'Nama tim 2–30 karakter.' });
+  if (await Registration.findOne({ teamKey: teamKeyOf(name), status: 'Paid' })) return res.status(409).json({ error: 'Nama tim sudah terdaftar.' });
+  await Registration.create({
+    orderId: newOrderId(), teamName: name, teamKey: teamKeyOf(name), captainWa: normalizeWa(b.captainWa),
+    players: [], amount: 0, status: 'Paid', paidAt: new Date(), source: 'manual',
+  });
+  res.json({ ok: true });
+}));
+
+// Impor tim lama dari Google Sheets (tim yang sudah terdaftar sebelum sistem baru). Aman diulang.
+admin.post('/import-sheet', wrap(async (_req, res) => {
+  const names = await readSheetTeams();
+  let added = 0;
+  for (const name of names) {
+    const teamName = clean(name, 30);
+    if (teamName.length < 2) continue;
+    if (await Registration.findOne({ teamKey: teamKeyOf(teamName), status: 'Paid' })) continue;
+    await Registration.create({
+      orderId: newOrderId(), teamName, teamKey: teamKeyOf(teamName), players: [], amount: 0,
+      status: 'Paid', paidAt: new Date(), source: 'sheet', sheetSynced: true,
+    });
+    added++;
+  }
+  res.json({ ok: true, found: names.length, added });
+}));
+
+admin.post('/sync-sheet', wrap(async (_req, res) => {
+  const pending = await Registration.find({ status: 'Paid', source: 'web', sheetSynced: false });
+  for (const r of pending) await reg.syncSheet(r);
+  const left = await Registration.countDocuments({ status: 'Paid', source: 'web', sheetSynced: false });
+  res.json({ ok: true, tried: pending.length, left });
+}));
+
+admin.get('/export.csv', wrap(async (_req, res) => {
+  const list = await Registration.find({ status: 'Paid' }).sort({ paidAt: 1 }).lean();
+  const esc = (v) => {
+    let s = String(v ?? '');
+    if (/^[=+\-@]/.test(s)) s = "'" + s; // cegah formula injection di Excel
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const head = ['No', 'Kode', 'Nama Tim', 'WhatsApp', 'Sumber', 'Lunas Pada', ...Array.from({ length: 7 }, (_, i) => `Player ${i + 1}`)];
+  const rows = list.map((r, i) => [
+    i + 1, r.orderId, r.teamName, r.captainWa, r.source, r.paidAt ? new Date(r.paidAt).toISOString() : '',
+    ...Array.from({ length: 7 }, (_, k) => (r.players[k] ? `${r.players[k].nick} (${r.players[k].uid}/${r.players[k].sid})` : '')),
+  ]);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="tim-hire-cup-vol2.csv"');
+  res.send('﻿' + [head, ...rows].map((row) => row.map(esc).join(',')).join('\r\n'));
+}));
+
+admin.get('/bracket', wrap(async (_req, res) => res.json(await bracketView({ admin: true }))));
+
+admin.post('/bracket/generate', wrap(async (req, res) => {
+  const teams = await Registration.find({ status: 'Paid' }).sort({ paidAt: 1 }).select('orderId').lean();
+  let rounds;
+  try {
+    rounds = bracket.generate(teams.map((t) => t.orderId), { random: (req.body || {}).random !== false });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+  await Bracket.findOneAndUpdate({ key: 'main' }, { rounds, published: false }, { upsert: true });
+  res.json({ ok: true, teams: teams.length });
+}));
+
+admin.post('/bracket/match', wrap(async (req, res) => {
+  const { round, index, scoreA, scoreB, winner } = req.body || {};
+  const b = await Bracket.findOne({ key: 'main' });
+  if (!b) return res.status(404).json({ error: 'Bracket belum dibuat.' });
+  const rounds = b.toObject().rounds;
+  try {
+    bracket.setResult(rounds, Number(round), Number(index), { scoreA, scoreB, winner: winner || null });
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+  b.rounds = rounds;
+  b.markModified('rounds');
+  await b.save();
+  res.json({ ok: true });
+}));
+
+admin.post('/bracket/publish', wrap(async (req, res) => {
+  const r = await Bracket.updateOne({ key: 'main' }, { published: !!(req.body || {}).published });
+  if (!r.matchedCount) return res.status(404).json({ error: 'Bracket belum dibuat.' });
+  res.json({ ok: true });
+}));
+
+admin.delete('/bracket', wrap(async (_req, res) => {
+  await Bracket.deleteOne({ key: 'main' });
+  res.json({ ok: true });
+}));
+
+app.use('/api/admin', admin);
+
+app.use('/api', (_req, res) => res.status(404).json({ error: 'Endpoint tidak ditemukan.' }));
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, _req, res, _next) => {
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Body bukan JSON yang valid.' });
+  console.error(err);
+  res.status(500).json({ error: 'Terjadi kesalahan di server.' });
 });
 
-// Endpoint untuk mengambil daftar tim dengan pemetaan data yang akurat
-app.get('/api/teams', async (req, res) => {
-    try {
-        const googleSheetUrl = 'https://script.google.com/macros/s/AKfycbwaW0WSKHJZ_FjRoyTMrn-IoKwEfQblFVSere5PBQ3PGaCzOe_CfWRGMY22t8wXsrdkjA/exec';
-        const response = await fetch(googleSheetUrl);
-        const textResult = await response.text();
-        const rawData = JSON.parse(textResult);
-
-        // Ubah struktur data agar benar-benar mengambil Kolom B (Nama Tim)
-        const teams = rawData.map(row => {
-            let name = "";
-            let stat = "Lunas";
-
-            if (Array.isArray(row)) {
-                name = row[1] || row[0]; 
-                stat = row[10] || row[row.length - 1] || "Lunas";
-            } else if (typeof row === 'object' && row !== null) {
-                name = row.teamName || row.name || row[Object.keys(row)[1]] || Object.values(row)[1];
-                stat = row.status || "Lunas";
-            }
-
-            return {
-                teamName: name,
-                status: stat
-            };
-        }).filter(t => t.teamName && !t.teamName.toString().includes('Timestamp') && !t.teamName.toString().includes('2026-10-06T'));
-
-        res.json(teams);
-    } catch (error) {
-        console.error("Fetch Teams Error:", error);
-        res.json([]);
-    }
-});
-
-// Port dinamis yang wajib digunakan agar Railway tidak error 502 / Application failed to respond
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server berjalan di port ${PORT}`);
-});
+mongoose
+  .connect(config.mongoUri)
+  .then(() => {
+    console.log('Terhubung ke MongoDB:', mongoose.connection.name);
+    // Port dinamis wajib agar Railway tidak error 502
+    app.listen(config.port, '0.0.0.0', () => console.log(`Server berjalan di port ${config.port}`));
+  })
+  .catch((e) => {
+    console.error('Gagal konek MongoDB:', e.message);
+    process.exit(1);
+  });

@@ -94,7 +94,7 @@
       <span class="font-display text-[1.7rem] leading-none pt-1 tracking-wide" data-bind="tournamentName">HIRE ESPORT</span>
     </a>
 
-    <nav class="hidden md:flex items-center gap-7" aria-label="Navigasi utama">
+    <nav class="hidden lg:flex items-center gap-7" aria-label="Navigasi utama">
       <a class="nav-link" data-link="home" href="#home">Home</a>
       <a class="nav-link" data-link="about" href="#about">About</a>
       <a class="nav-link" data-link="teams" href="#teams">Tim Terdaftar</a>
@@ -105,9 +105,23 @@
     </nav>
 
     <div class="flex items-center gap-2">
-      <a href="#daftar" class="btn-gold chamfer-sm px-4 sm:px-5 py-1.5 text-xl sm:text-2xl leading-none pt-2">Daftar Sekarang</a>
+      <a href="#daftar" class="btn-gold chamfer-sm px-4 sm:px-5 py-1.5 text-xl sm:text-2xl leading-none pt-2 whitespace-nowrap">Daftar Sekarang</a>
+      <button type="button" id="menuBtn" class="lg:hidden btn-ghost chamfer-sm w-10 h-10 flex items-center justify-center" aria-label="Buka menu" aria-expanded="false" aria-controls="mobileNav">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
     </div>
   </div>
+  <nav id="mobileNav" class="lg:hidden hidden border-t border-white/10 bg-ink/95" aria-label="Navigasi mobile">
+    <div class="max-w-6xl mx-auto px-5 py-3 grid grid-cols-2 gap-1">
+      <a class="nav-link py-2" data-link="home" href="#home">Home</a>
+      <a class="nav-link py-2" data-link="about" href="#about">About</a>
+      <a class="nav-link py-2" data-link="teams" href="#teams">Tim Terdaftar</a>
+      <a class="nav-link py-2" data-link="halloffame" href="#halloffame">Hall of Fame</a>
+      <a class="nav-link py-2" data-link="sistem" href="#sistem">Sistem Turnamen</a>
+      <a class="nav-link py-2" data-link="bracket" href="#bracket">Bracket</a>
+      <a class="nav-link py-2" data-link="daftar" href="#daftar">Daftar</a>
+    </div>
+  </nav>
 </header>
 
 <main>
@@ -138,7 +152,7 @@
           <span class="text-[10px] bg-gold/20 text-gold px-2 py-0.5 rounded font-bold uppercase tracking-wider">Live PrizePool</span>
         </div>
         <p id="prizeTotal" class="font-display font-bold text-[3.8rem] sm:text-[5rem] leading-[.9] title-gold mt-1">Rp100.000</p>
-        <p class="text-xs text-mist mt-1"><span id="poolTeamCount">0</span> Setiap Team Yang Mendaftar Maka Prize Pool akan Bertambah Di Mulai Dari 100k Dan akan bertambah Ketika Team mendaftar(+Rp150k/tim)</p>
+        <p class="text-xs text-mist mt-1"><span id="poolTeamCount" class="text-gold font-semibold">0</span> tim lunas · Dimulai dari <span id="poolBase">Rp100.000</span> dan bertambah <span id="poolPerTeam">Rp150.000</span> setiap tim yang lunas mendaftar.</p>
       </div></div>
 
       <div class="frame-red chamfer lg:flex-1"><div class="bg-panel chamfer p-5 sm:p-6 h-full">
@@ -182,7 +196,7 @@
       <div>
         <h2 class="sec-title">Tim Terverifikasi (Slot 32 Besar)</h2>
         <div class="sec-bar"></div>
-        <p class="text-slate-300 mt-4 max-w-xl">Daftar tim yang mengambil data secara live dari database pendaftaran.</p>
+        <p class="text-slate-300 mt-4 max-w-xl">Tim yang pembayarannya sudah terverifikasi otomatis.</p>
       </div>
       <div class="frame chamfer-sm">
         <div class="inner chamfer-sm px-5 py-2.5 text-center">
@@ -324,14 +338,11 @@
       <div>
         <h2 class="sec-title">Bracket pertandingan</h2>
         <div class="sec-bar"></div>
-        <p class="text-slate-300 mt-4 max-w-xl">Bagan turnamen transparan berstandar Liquipedia. Klik tombol simulasi di samping untuk melihat alur kompetisi.</p>
-      </div>
-      <div class="flex gap-2">
-        <button type="button" id="simBtn" class="btn-gold chamfer-sm px-5 py-2 text-2xl leading-none pt-2.5">Simulasikan bracket</button>
-        <button type="button" id="resetBracketBtn" class="btn-ghost chamfer-sm px-5 py-2 font-medium">Reset</button>
+        <p class="text-slate-300 mt-4 max-w-xl">Bagan resmi diperbarui panitia setiap pertandingan selesai.</p>
       </div>
     </div>
-    <div class="mt-8 overflow-x-auto bg-[#0b0f19] border border-line p-4 rounded-lg shadow-inner">
+    <p id="bracketNote" class="mt-6 text-sm text-mist">Memuat bracket…</p>
+    <div class="mt-4 overflow-x-auto bg-[#0b0f19] border border-line p-4 rounded-lg shadow-inner">
       <div id="liquipediaBracket" class="liquipedia-bracket"></div>
     </div>
   </div>
@@ -345,7 +356,12 @@
     <div class="sec-bar"></div>
     <p class="text-slate-300 mt-4 mb-8">Isi data lengkap roster tim, lakukan pembayaran via WaroengPay, dan dapatkan link grup WhatsApp otomatis.</p>
 
-    <form id="regForm" onsubmit="return false;" novalidate class="space-y-8">
+    <div id="regClosed" class="hidden frame-red chamfer mb-8"><div class="bg-panel chamfer p-5 sm:p-6">
+      <p class="font-display text-3xl text-crimson leading-none">Pendaftaran ditutup</p>
+      <p id="regClosedReason" class="text-slate-300 mt-2"></p>
+    </div></div>
+
+    <form id="regForm" novalidate class="space-y-8">
       <div class="frame chamfer"><div class="inner chamfer p-5 sm:p-7">
         <h3 class="font-display text-3xl sm:text-4xl leading-none mb-5">Data tim</h3>
         <div class="grid sm:grid-cols-2 gap-x-5 gap-y-4">
@@ -375,7 +391,9 @@
       </div></div>
 
       <div>
-        <button type="submit" id="payBtn" class="btn-gold chamfer w-full py-4 text-2xl sm:text-3xl">Lanjut ke Pembayaran (WaroengPay Rp150.000)</button>
+        <p id="formError" class="err text-center text-base mb-2" role="alert"></p>
+        <button type="submit" id="payBtn" class="btn-gold chamfer w-full py-4 text-2xl sm:text-3xl">Lanjut ke Pembayaran</button>
+        <p class="text-xs text-mist text-center mt-3">Kamu akan diarahkan ke halaman pembayaran QRIS WaroengPay. Setelah bayar, kembali ke website ini untuk mengambil E-Ticket & link grup WhatsApp. Simpan link halaman status yang muncul.</p>
       </div>
     </form>
   </div>
@@ -389,7 +407,6 @@
       <div class="flex items-center gap-2 text-slate-300 hover:text-gold transition"><span class="font-display text-3xl font-bold tracking-wider">HIRE COFFEE</span></div>
       <div class="flex items-center gap-2 text-slate-300 hover:text-gold transition"><span class="font-display text-3xl font-bold tracking-wider">ZAYNSTORE</span></div>
       <div class="flex items-center gap-2 text-slate-300 hover:text-gold transition"><span class="font-display text-3xl font-bold tracking-wider">AGUNG TOYOTA</span></div>
-      <div class="flex items-center gap-2 text-slate-300 hover:text-gold transition"><span class="font-display text-3xl font-bold tracking-wider"></span></div>
     </div>
   </div>
 </section>
@@ -408,12 +425,31 @@
   <section class="relative overflow-hidden min-h-screen py-14 sm:py-20">
     <div class="absolute inset-0 grid-bg" aria-hidden="true"></div>
 
-    <div class="relative max-w-2xl mx-auto px-5">
+    <!-- Menunggu / gagal bayar -->
+    <div id="statusPending" class="hidden relative max-w-2xl mx-auto px-5">
+      <div class="frame chamfer"><div class="inner chamfer p-6 sm:p-8">
+        <p class="text-xs text-gold uppercase tracking-widest font-semibold">Status Pendaftaran · <span id="pCode">-</span></p>
+        <h1 id="pTitle" class="font-display font-bold text-5xl sm:text-6xl leading-[.9] mt-2 title-gold">Menunggu pembayaran</h1>
+        <p class="mt-2 text-slate-300">Tim: <span id="pTeam" class="text-white font-semibold">-</span></p>
+        <p id="pDesc" class="mt-3 text-slate-300">Kami sedang mengecek pembayaranmu ke WaroengPay. Halaman ini otomatis diperbarui.</p>
+        <div id="pSpinner" class="flex items-center gap-3 text-mist mt-4">
+          <span class="w-5 h-5 border-2 border-gold border-t-transparent rounded-full spin"></span> Mengecek status…
+        </div>
+        <div class="mt-6 flex flex-col sm:flex-row gap-3">
+          <a id="pPayBtn" href="#" class="hidden btn-gold chamfer px-6 py-3 text-2xl text-center">Lanjutkan Pembayaran</a>
+          <button type="button" id="pRetryBtn" class="hidden btn-gold chamfer px-6 py-3 text-2xl">Daftar Ulang</button>
+          <button type="button" class="btn-ghost chamfer-sm px-5 py-2.5 text-sm" data-home>Kembali ke Beranda</button>
+        </div>
+        <p class="text-xs text-mist mt-5">Sudah bayar tapi status tidak berubah? Simpan kode di atas dan hubungi panitia.</p>
+      </div></div>
+    </div>
+
+    <div id="statusPaid" class="hidden relative max-w-2xl mx-auto px-5">
       <div class="w-16 h-16 bg-gold text-ink chamfer-sm flex items-center justify-center pop">
         <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
       </div>
       <h1 class="font-display font-bold text-5xl sm:text-7xl leading-[.85] mt-5 title-gold">Tim kamu resmi terdaftar!</h1>
-      <p class="mt-3 text-base sm:text-lg text-slate-300">Pembayaran WaroengPay sukses diverifikasi dan data masuk ke Google Sheets. Silakan unduh E-Ticket peserta dan bergabung ke grup WhatsApp.</p>
+      <p class="mt-3 text-base sm:text-lg text-slate-300">Pembayaran sudah terverifikasi. Silakan unduh E-Ticket peserta dan bergabung ke grup WhatsApp. Halaman ini bisa dibuka lagi kapan saja lewat link yang sama.</p>
 
       <div class="mt-6 flex flex-col sm:flex-row gap-3">
         <div class="min-h-[50px] flex-1">
@@ -463,267 +499,11 @@
         </div>
       </div>
 
-      <button type="button" id="resetBtn" class="btn-ghost chamfer-sm mt-6 px-5 py-2.5 text-sm w-full">Kembali ke Beranda</button>
+      <button type="button" class="btn-ghost chamfer-sm mt-6 px-5 py-2.5 text-sm w-full" data-home>Kembali ke Beranda</button>
     </div>
   </section>
 </div>
 
-<script>
-const CONFIG = {
-  tournamentName: 'HIRE ESPORT',
-  fee: 1000,
-  basePrize: 100000,
-  minPlayers: 5,
-  maxPlayers: 7,
-  closeAt: '2026-12-29T23:59:00+07:00',
-  waGroupLink: 'https://chat.whatsapp.com/GmzSH5WXrgFEBGMPrujC2O?mode=gi_t'
-};
-
-const $ = (s, r = document) => r.querySelector(s);  
-const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const pad = n => String(n).padStart(2, '0');
-
-// Sinkronisasi otomatis teks tombol pembayaran dengan CONFIG.fee
-document.addEventListener("DOMContentLoaded", () => {
-  const payBtn = $('#payBtn');
-  if (payBtn) {
-    payBtn.textContent = `Lanjut ke Pembayaran (WaroengPay Rp${CONFIG.fee.toLocaleString('id-ID')})`;
-  }
-});
-
-/* Live Fetch Daftar Tim & Hitung Compendium Prize Pool */
-async function loadVerifiedTeams() {
-  const grid = $('#verifiedTeamsGrid');
-  const statusEl = $('#slotStatus');
-  const prizeEl = $('#prizeTotal');
-  const poolCountEl = $('#poolTeamCount');
-
-  try {
-    const res = await fetch('/api/teams');
-    const teams = await res.json();
-    
-    statusEl.textContent = `${teams.length} / 32 Tim Terisi`;
-    poolCountEl.textContent = teams.length;
-
-    const dynamicPrize = CONFIG.basePrize + (teams.length * CONFIG.fee);
-    prizeEl.textContent = 'Rp' + dynamicPrize.toLocaleString('id-ID');
-
-    grid.innerHTML = '';
-
-    if (teams.length === 0) {
-      grid.innerHTML = '<div class="text-mist text-sm col-span-full py-4">Belum ada tim yang mendaftar. Jadilah yang pertama!</div>';
-      return;
-    }
-
-    teams.forEach(team => {
-      const card = document.createElement('div');
-      card.className = 'frame chamfer-sm pop';
-      card.innerHTML = `<div class="inner chamfer-sm p-4 flex items-center justify-between"><span class="font-semibold text-white truncate max-w-[160px]">${team.teamName}</span><span class="text-xs bg-gold/15 text-gold px-2 py-0.5 rounded shrink-0">Lunas</span></div>`;
-      grid.appendChild(card);
-    });
-  } catch (err) {
-    statusEl.textContent = 'Gagal memuat';
-    grid.innerHTML = '<div class="text-crimson text-sm col-span-full py-4">Gagal menyambung ke database tim.</div>';
-  }
-}
-loadVerifiedTeams();
-
-/* Countdown */
-(() => {
-  const target = new Date(CONFIG.closeAt).getTime();
-  $('#closeLabel').textContent = 'Batas pendaftaran: ' + new Date(target).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const set = (k, v) => $(`[data-cd="${k}"]`).textContent = v;
-  setInterval(() => {
-    const left = Math.max(0, target - Date.now());
-    const s = Math.floor(left / 1000);
-    set('d', pad(Math.floor(s / 86400)));
-    set('h', pad(Math.floor(s % 86400 / 3600)));
-    set('m', pad(Math.floor(s % 3600 / 60)));
-    set('s', pad(s % 60));
-  }, 1000);
-})();
-
-/* Bracket Liquipedia */
-(() => {
-  const ROUNDS = [{ name: '32 Besar', n: 16 }, { name: '16 Besar', n: 8 }, { name: 'Perempat Final', n: 4 }, { name: 'Semi Final', n: 2 }, { name: 'Grand Final', n: 1 }];
-  const SAMPLE = ['STRT', 'Jeruk Kipis', 'Batang Pisang', 'Felicity Coffe', 'Kopi Susu', 'Foreign', 'Livin X Kme', 'Saba Gank', 'Turnip', 'Hire Castilla', 'Turnip 2', 'Hire Family', 'Iqro 6', 'Hire Lamasia', 'Garuda', 'Borneo', 'Rimba', 'Kopi', 'Sultan', 'Nusa', 'Arjuna', 'Samudra', 'Cakra', 'Elang', 'Bara', 'Tirta', 'Wira', 'Pandawa', 'Naga', 'Banteng', 'Harimau', 'Komodo'];
-  const container = $('#liquipediaBracket');
-  function render() {
-    container.innerHTML = '';
-    ROUNDS.forEach(r => {
-      const col = document.createElement('div'); col.className = 'lp-round';
-      col.innerHTML = `<div class="lp-round-header">${r.name}</div>`;
-      for(let i=0; i<r.n; i++) {
-        col.innerHTML += `<div class="lp-matchup"><div class="lp-team"><span class="name">Slot Tim</span><span class="score">-</span></div><div class="lp-team"><span class="name">Slot Tim</span><span class="score">-</span></div></div>`;
-      }
-      container.appendChild(col);
-    });
-  }
-  $('#simBtn').addEventListener('click', () => {
-    const shuffled = [...SAMPLE].sort(() => Math.random() - .5);
-    container.innerHTML = '';
-    ROUNDS.forEach((r, ri) => {
-      const col = document.createElement('div'); col.className = 'lp-round';
-      col.innerHTML = `<div class="lp-round-header">${r.name}</div>`;
-      for(let i=0; i<r.n; i++) {
-        const t1 = ri === 0 ? shuffled[i*2] : 'Menunggu...';
-        const t2 = ri === 0 ? shuffled[i*2+1] : 'Menunggu...';
-        col.innerHTML += `<div class="lp-matchup"><div class="lp-team winner"><span class="name">${t1}</span><span class="score">1</span></div><div class="lp-team"><span class="name">${t2}</span><span class="score">0</span></div></div>`;
-      }
-      container.appendChild(col);
-    });
-  });
-  render();
-})();
-
-/* Player Dinamis */
-const list = $('#playerList');
-const addBtn = $('#addPlayerBtn');
-function playerRow() {
-  const row = document.createElement('div');
-  row.className = 'bg-well/60 border border-line p-3 pop';
-  row.innerHTML = `
-    <div class="flex justify-between mb-2"><span class="text-gold font-display text-xl row-title"></span><button type="button" class="remove-btn text-sm text-mist hover:text-crimson">Hapus</button></div>
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
-      <div class="col-span-2"><input class="field" data-f="nick" placeholder="Nickname" required></div>
-      <div class="col-span-2"><input class="field" data-f="uid" placeholder="User ID" required></div>
-      <div><input class="field" data-f="sid" placeholder="Server ID" required></div>
-    </div>`;
-  row.querySelector('.remove-btn').addEventListener('click', () => { if (list.children.length > CONFIG.minPlayers) { row.remove(); refreshPlayers(); } });
-  return row;
-}
-function refreshPlayers() {
-  const rows = [...list.children];
-  rows.forEach((r, i) => {
-    r.querySelector('.row-title').textContent = 'Player ' + (i + 1);
-    r.querySelector('.remove-btn').classList.toggle('hidden', rows.length <= CONFIG.minPlayers);
-  });
-  $('#playerCount').textContent = `${rows.length}/${CONFIG.maxPlayers}`;
-  addBtn.disabled = rows.length >= CONFIG.maxPlayers;
-}
-addBtn.addEventListener('click', () => { if (list.children.length < CONFIG.maxPlayers) { list.appendChild(playerRow()); refreshPlayers(); } });
-for(let i=0; i<CONFIG.minPlayers; i++) list.appendChild(playerRow());
-refreshPlayers();
-
-/* Form Submit & WaroengPay Gateway */
-$('#regForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const teamName = $('#teamName').value.trim();
-  const captainWa = $('#captainWa').value.trim();
-  const players = [];
-
-  [...list.children].forEach(row => {
-    players.push(`${row.querySelector('[data-f="nick"]').value} (${row.querySelector('[data-f="uid"]').value}/${row.querySelector('[data-f="sid"]').value})`);
-  });
-
-  if (!teamName || !captainWa) { alert('Harap isi Nama Tim dan WhatsApp Kapten!'); return; }
-
-  try {
-    const payBtn = $('#payBtn');
-    payBtn.textContent = 'Menghubungkan ke WaroengPay...';
-    payBtn.disabled = true;
-
-    const res = await fetch('/api/create-transaction', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ teamName, captainWa, fee: CONFIG.fee })
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-
-    if (data.paymentUrl) {
-      // Simpan data tim ke localStorage sebelum dilempar ke WaroengPay
-      localStorage.setItem('pendingTeam', JSON.stringify({ teamName, captainWa, players, orderId: data.orderId }));
-      window.location.href = data.paymentUrl;
-    } else {
-      throw new Error('URL pembayaran WaroengPay tidak ditemukan.');
-    }
-  } catch (err) {
-    alert("Terjadi kesalahan: " + err.message);
-    $('#payBtn').textContent = `Lanjut ke Pembayaran (WaroengPay Rp${CONFIG.fee.toLocaleString('id-ID')})`;
-    $('#payBtn').disabled = false;
-  }
-});
-
-// Pengecekan otomatis begitu user kembali dari halaman pembayaran WaroengPay
-window.addEventListener('DOMContentLoaded', async () => {
-  const urlParams = new URLSearchParams(window.location.search);
-  
-  if (urlParams.get('success') === 'true') {
-    const savedDataJSON = localStorage.getItem('pendingTeam');
-    
-    if (savedDataJSON) {
-      const savedData = JSON.parse(savedDataJSON);
-      
-      try {
-        // Kirim data ke Google Sheets otomatis
-        await fetch('/api/save-to-sheet', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            teamName: savedData.teamName, 
-            whatsapp: savedData.captainWa, 
-            players: savedData.players 
-          })
-        });
-
-        loadVerifiedTeams();
-
-        // Tampilkan halaman sukses
-        $('#sTeam').textContent = savedData.teamName;
-        $('#sCode').textContent = 'TIM-' + (savedData.orderId ? savedData.orderId.slice(-6) : '2026');
-        $('#sWa').textContent = savedData.captainWa.slice(0, 4) + '••••' + savedData.captainWa.slice(-3);
-
-        const ul = $('#sPlayers');
-        ul.innerHTML = '';
-        savedData.players.forEach((pStr, i) => {
-          const li = document.createElement('li');
-          li.className = 'flex items-center justify-between py-2 text-sm';
-          const parts = pStr.split(' (');
-          li.innerHTML = `<span>${i + 1}. ${parts[0]}</span><span class="text-mist">${parts[1] ? parts[1].replace(')', '') : ''}</span>`;
-          ul.appendChild(li);
-        });
-
-        $('#site').classList.add('hidden');
-        $('#view-success').classList.remove('hidden');
-        window.scrollTo({ top: 0 });
-
-        $('#waBtn').href = CONFIG.waGroupLink;
-        setTimeout(() => {
-          $('#waPending').classList.add('hidden');
-          const btn = $('#waBtn');
-          btn.classList.remove('hidden');
-          btn.classList.add('pop');
-        }, 1200);
-
-        localStorage.removeItem('pendingTeam');
-      } catch (err) {
-        console.error("Gagal menyimpan data ke spreadsheet:", err);
-      }
-    }
-  }
-});
-
-// Fungsi Tombol Download E-Ticket Gambar
-$('#downloadTicketBtn').addEventListener('click', async () => {
-  const card = $('#eTicketCard');
-  try {
-    const canvas = await html2canvas(card, {
-      scale: 2,
-      backgroundColor: '#0b0f19',
-      logging: false
-    });
-    const image = canvas.toDataURL('image/png');
-    const a = document.createElement('a');
-    a.href = image;
-    a.download = `ETicket-${$('#sTeam').textContent || 'Tim'}-HireCupVol2.png`;
-    a.click();
-  } catch (err) {
-    alert("Gagal mengunduh E-Ticket. Silakan screenshot manual.");
-  }
-});
-
-$('#resetBtn').addEventListener('click', () => { window.location.href = '/'; });
-</script>
+<script src="/app.js"></script>
 </body>
 </html>
