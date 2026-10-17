@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>E-Ticket &amp; Invoice – HIRE CUP Vol 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#040a17; --text:#e8f1ff; --muted:#8ea5cb; --gold:#e8b54a; --gold2:#ffd98a; --blue:#1f6bff; --cyan:#38c6ff; --line:#1d3866;
+    --paper:#fbfcff; --ink:#0b1b3a; --ink2:#52627f; --rule:#dfe5ef; --strip:#eef3fb;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Chakra Petch","Segoe UI",system-ui,sans-serif;font-size:16px;color:var(--text);min-height:100vh;padding:20px 14px 60px;
+    background:radial-gradient(900px 480px at 50% -120px,#0f3d8f,var(--page) 65%) no-repeat,var(--page)}
+  .wrap{max-width:780px;margin:0 auto}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .toolbar a.back{color:var(--muted);text-decoration:none;font-size:15px}
+  .toolbar .btns{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{border:0;cursor:pointer;font:inherit;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:14px;padding:11px 20px;text-decoration:none;display:inline-block;
+    clip-path:polygon(10px 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+  .btn-gold{background:linear-gradient(180deg,var(--gold2),var(--gold));color:#2a1c00}
+  .btn-ghost{background:#ffffff14;color:var(--text)}
+  .btn:hover{filter:brightness(1.08)}
+
+  .state{background:#0c1a36;border:1px solid var(--line);border-radius:6px;padding:34px 20px;text-align:center;color:var(--muted)}
+  .state h2{color:var(--text);font-family:"Oxanium",sans-serif;margin-bottom:8px}
+  .state .spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--gold);border-radius:50%;margin:0 auto 14px;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* ===== TIKET ===== */
+  .ticket{position:relative;background:var(--paper);color:var(--ink);border-radius:10px;overflow:hidden;box-shadow:0 20px 60px #000a,0 0 0 1px #38c6ff55}
+  .t-head{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 24px;color:#fff;overflow:hidden;
+    background:linear-gradient(110deg,#071a3f,#0b3a8c 55%,#1f6bff)}
+  .t-head::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.35;
+    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='48.5' viewBox='0 0 56 97'%3E%3Cpath d='M28 0l28 16.2v32.4L28 64.8 0 48.6V16.2zM28 64.8v32.4' fill='none' stroke='%2338c6ff' stroke-opacity='.5' stroke-width='2'/%3E%3C/svg%3E") 0 0/28px 48.5px}
+  .t-head > *{position:relative;z-index:1}
+  .t-head small{letter-spacing:.28em;color:var(--cyan);font-weight:700;font-size:11px}
+  .t-head h1{font-family:"Oxanium",sans-serif;font-weight:800;font-size:24px;line-height:1.1;margin-top:3px;color:#fff}
+  .t-head h1 span{color:var(--gold2)}
+  .badge{font-family:"Oxanium",sans-serif;font-weight:800;letter-spacing:.2em;font-size:13px;color:#2a1c00;background:linear-gradient(180deg,var(--gold2),var(--gold));padding:8px 14px;white-space:nowrap;
+    clip-path:polygon(8px 0,100% 0,calc(100% - 8px) 100%,0 100%)}
+  .t-body{display:grid;grid-template-columns:1fr 170px;gap:20px;padding:22px 24px 16px;align-items:start}
+  .lbl{font-size:11px;letter-spacing:.2em;color:var(--ink2);text-transform:uppercase;font-weight:700}
+  .val{font-weight:700;font-size:17px;overflow-wrap:anywhere}
+  .val.big{font-family:"Oxanium",sans-serif;font-weight:800;font-size:32px;line-height:1.05;margin:2px 0 14px;color:#0b3a8c}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 18px}
+  .code{letter-spacing:.2em;color:#0b3a8c}
+  .t-qr{text-align:center}
+  .t-qr img{width:150px;height:150px;display:block;margin:0 auto 6px;border:1px solid var(--rule);border-radius:6px;padding:4px;background:#fff}
+  .t-qr small{font-size:11px;color:var(--ink2);letter-spacing:.04em}
+  .roster{padding:0 24px 18px}
+  .roster table{margin-top:6px}
+  .roster td:first-child{width:34px;color:var(--ink2);font-weight:700}
+  .roster td.ids{text-align:right;color:var(--ink2);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .role{display:inline-block;margin-left:8px;font-size:10px;letter-spacing:.14em;font-weight:700;padding:1px 7px;border-radius:3px;background:#e6efff;color:#0b3a8c;vertical-align:2px}
+  .role.sub{background:#fff4dc;color:#8a5a12}
+  .t-event{position:relative;border-top:2px dashed #c5d0e2;padding:16px 24px 18px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px 18px;background:var(--strip)}
+  .t-event::before,.t-event::after{content:"";position:absolute;top:-13px;width:24px;height:24px;border-radius:50%;background:var(--notch,#040a17)}
+  .t-event::before{left:-12px}.t-event::after{right:-12px}
+  .t-event .val{font-size:15px}
+  .stamp{position:absolute;right:200px;top:96px;transform:rotate(-12deg);border:3px solid #16a34a;color:#16a34a;font-family:"Oxanium",sans-serif;font-weight:800;letter-spacing:.2em;font-size:22px;padding:4px 14px;border-radius:6px;opacity:.85;pointer-events:none}
+
+  /* ===== INVOICE ===== */
+  .invoice{margin-top:22px;background:var(--paper);color:var(--ink);border-radius:10px;padding:24px;box-shadow:0 20px 60px #0008}
+  .inv-head{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:12px;margin-bottom:16px}
+  .inv-head h2{font-family:"Oxanium",sans-serif;font-weight:800;font-size:26px;letter-spacing:.14em;color:#0b3a8c}
+  .inv-head .meta{text-align:right;font-size:14px;color:var(--ink2)}
+  .inv-head .meta b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:15px}
+  th{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink2);text-align:left;border-bottom:1px solid var(--rule);padding:8px 0}
+  th:last-child,.invoice td:last-child{text-align:right}
+  td{padding:9px 0;border-bottom:1px solid var(--rule)}
+  tr.total td{font-weight:700;font-size:18px;border-bottom:0;border-top:2px solid var(--ink);padding-top:12px}
+  .paid-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:16px;font-size:14px;color:var(--ink2)}
+  .paid-row b{color:var(--ink)}
+  .pill{display:inline-block;background:#dcfce7;color:#166534;font-weight:700;letter-spacing:.14em;font-size:12px;padding:3px 12px;border-radius:99px}
+  .notes{margin-top:18px;padding-top:14px;border-top:1px dashed #c5d0e2;font-size:13.5px;color:var(--ink2);line-height:1.55}
+  .notes ul{padding-left:18px}
+  .org{margin-top:12px;font-size:13px;color:var(--ink2)}
+  .disclaimer{margin-top:6px;font-size:11.5px;color:#8b97ad}
+
+  .join{margin-top:20px;text-align:center}
+  [hidden]{display:none!important}
+
+  @media(max-width:620px){
+    .t-body{grid-template-columns:1fr}
+    .t-qr{order:-1}
+    .val.big{font-size:26px}
+    .t-event{grid-template-columns:1fr 1fr}
+    .t-head h1{font-size:19px}
+    .stamp{display:none}
+    .roster td.ids{font-size:13px}
+  }
+
+  /* ===== CETAK / SIMPAN PDF ===== */
+  @page{size:A4;margin:10mm}
+  @media print{
+    :root{--notch:#fff}
+    body{background:#fff!important;color:#000;padding:0;min-height:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .no-print{display:none!important}
+    .wrap{max-width:none}
+    .ticket,.invoice{box-shadow:none;border:1px solid #bbb;break-inside:avoid}
+    .stamp{display:block!important;right:170px;top:84px;font-size:18px}
+    /* Padatkan agar tiket + invoice muat 1 halaman A4 (roster sampai 7 pemain) */
+    body{font-size:14px}
+    .t-head{padding:12px 20px}
+    .t-head h1{font-size:20px}
+    .t-body{grid-template-columns:1fr 130px;gap:14px;padding:14px 20px 8px}
+    .t-qr img{width:116px;height:116px}
+    .t-qr small{font-size:10px}
+    .val{font-size:15px}
+    .val.big{font-size:26px;margin-bottom:8px}
+    .grid{gap:8px 16px}
+    .roster{padding:0 20px 10px}
+    .roster td{padding:4px 0;font-size:13.5px}
+    .t-event{grid-template-columns:repeat(3,1fr);padding:10px 20px 12px}
+    .t-event .val{font-size:13.5px}
+    .invoice{margin-top:10px;padding:14px 20px}
+    .inv-head{padding-bottom:8px;margin-bottom:8px}
+    .inv-head h2{font-size:20px}
+    .inv-head .meta{font-size:12.5px}
+    table{font-size:13.5px}
+    .invoice td{padding:6px 0}
+    tr.total td{font-size:16px;padding-top:8px}
+    .paid-row{margin-top:10px;font-size:13px}
+    .notes{margin-top:10px;padding-top:8px;font-size:12px;line-height:1.45}
+    .org{margin-top:6px;font-size:12px}
+    .disclaimer{font-size:10.5px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="toolbar no-print">
+    <a class="back" href="/">← Kembali ke Beranda</a>
+    <div class="btns" id="btns" hidden>
+      <button class="btn btn-gold" id="btn-print" type="button">🖨 Cetak / Simpan PDF</button>
+      <button class="btn btn-ghost" id="btn-copy" type="button">Salin Link Tiket</button>
+    </div>
+  </div>
+
+  <div class="state" id="state"><div class="spin"></div><h2>Memuat tiket…</h2></div>
+
+  <article id="doc" hidden>
+    <section class="ticket">
+      <div class="t-head">
+        <div><small id="t-season"></small><h1 id="t-name"></h1></div>
+        <div class="badge">E-TICKET</div>
+      </div>
+      <div class="t-body">
+        <div>
+          <div class="lbl">Nama Tim</div>
+          <div class="val big" id="t-team"></div>
+          <div class="grid">
+            <div><div class="lbl">WhatsApp Kapten</div><div class="val" id="t-wa"></div></div>
+            <div><div class="lbl">Kode Tiket</div><div class="val code" id="t-code"></div></div>
+            <div><div class="lbl">Jumlah Pemain</div><div class="val" id="t-count"></div></div>
+            <div><div class="lbl">Kode Pendaftaran</div><div class="val" id="t-order" style="font-size:14px"></div></div>
+          </div>
+        </div>
+        <div class="t-qr"><img id="t-qr" alt="QR tiket"><small>Tunjukkan QR ini saat verifikasi tim</small></div>
+      </div>
+      <div class="stamp">LUNAS</div>
+      <div class="roster">
+        <div class="lbl">Roster Pemain</div>
+        <table><tbody id="t-roster"></tbody></table>
+      </div>
+      <div class="t-event">
+        <div><div class="lbl">Jadwal</div><div class="val" id="e-when"></div></div>
+        <div><div class="lbl">Tempat</div><div class="val" id="e-where"></div></div>
+        <div><div class="lbl">Penyelenggara</div><div class="val" id="e-org"></div></div>
+      </div>
+    </section>
+
+    <section class="invoice">
+      <div class="inv-head">
+        <h2>INVOICE</h2>
+        <div class="meta">No. Invoice: <b id="i-order"></b><br>Ref. Pembayaran: <b id="i-gw"></b><br>Tanggal: <b id="i-date"></b></div>
+      </div>
+      <table>
+        <thead><tr><th>Deskripsi</th><th>Jumlah</th></tr></thead>
+        <tbody>
+          <tr><td id="i-desc"></td><td id="i-fee"></td></tr>
+          <tr id="i-code-row"><td>Kode unik pembayaran</td><td id="i-code"></td></tr>
+          <tr class="total"><td>Total Dibayar</td><td id="i-total"></td></tr>
+        </tbody>
+      </table>
+      <div class="paid-row">
+        <span>Metode: <b id="i-method"></b></span>
+        <span>Status: <span class="pill">LUNAS</span></span>
+      </div>
+      <div class="notes">
+        <b>Ketentuan:</b>
+        <ul>
+          <li>Tiket berlaku untuk 1 (satu) tim dengan roster yang tercantum di atas dan tidak dapat dipindahtangankan.</li>
+          <li>Tunjukkan e-ticket ini (dicetak atau di layar HP) saat verifikasi tim sebelum pertandingan.</li>
+          <li>Pergantian atau penambahan pemain hanya dengan persetujuan panitia.</li>
+          <li>Biaya pendaftaran yang sudah dibayar tidak dapat dikembalikan, kecuali turnamen dibatalkan oleh penyelenggara.</li>
+          <li>Kapten wajib bergabung ke grup turnamen untuk informasi jadwal, lobi, dan aturan.</li>
+        </ul>
+      </div>
+      <div class="org" id="i-contact"></div>
+      <div class="disclaimer">HIRE CUP adalah turnamen komunitas dan tidak berafiliasi dengan Moonton.</div>
+    </section>
+
+    <div class="join no-print" id="join" hidden>
+      <a class="btn btn-gold" id="join-link" href="#" target="_blank" rel="noopener">Gabung Grup Turnamen</a>
+    </div>
+  </article>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const rupiah = (n) => 'Rp' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+  const q = new URLSearchParams(location.search);
+  const orderId = q.get('o') || '', token = q.get('t') || '';
+  const fmt = (d, opt) => new Intl.DateTimeFormat('id-ID', Object.assign({ timeZone: 'Asia/Jakarta' }, opt)).format(new Date(d));
+  const localWa = (wa) => String(wa || '').replace(/^62/, '0');
+  let timer = null;
+
+  function state(title, text, spin) {
+    $('doc').hidden = true; $('btns').hidden = true;
+    const s = $('state'); s.hidden = false; s.textContent = '';
+    if (spin) { const d = document.createElement('div'); d.className = 'spin'; s.appendChild(d); }
+    const h = document.createElement('h2'); h.textContent = title; s.appendChild(h);
+    if (text) { const p = document.createElement('p'); p.textContent = text; s.appendChild(p); }
+  }
+
+  function cell(tr, text, cls) {
+    const td = document.createElement('td');
+    if (cls) td.className = cls;
+    td.textContent = text;
+    tr.appendChild(td);
+    return td;
+  }
+
+  function render(tk, ev) {
+    $('state').hidden = true; $('doc').hidden = false; $('btns').hidden = false;
+    document.title = 'E-Ticket ' + tk.teamName + ' – ' + ev.name;
+    $('t-season').textContent = ev.season;
+    $('t-name').innerHTML = 'HIRE CUP <span>Vol 2</span>';
+    $('t-team').textContent = tk.teamName;
+    $('t-wa').textContent = tk.captainWa ? localWa(tk.captainWa) : '—';
+    $('t-code').textContent = tk.ticketCode;
+    $('t-count').textContent = tk.players.length ? tk.players.length + ' pemain' : '—';
+    $('t-order').textContent = tk.orderId;
+    if (tk.qrImage) $('t-qr').src = tk.qrImage; else $('t-qr').parentElement.hidden = true;
+
+    const body = $('t-roster');
+    body.textContent = '';
+    if (!tk.players.length) {
+      const tr = document.createElement('tr');
+      cell(tr, '');
+      cell(tr, 'Roster belum diisi — hubungi panitia untuk melengkapi data pemain.');
+      body.appendChild(tr);
+    }
+    tk.players.forEach((p, i) => {
+      const tr = document.createElement('tr');
+      cell(tr, String(i + 1));
+      const name = cell(tr, p.nick);
+      const role = document.createElement('span');
+      role.className = 'role' + (i >= 5 ? ' sub' : '');
+      role.textContent = i >= 5 ? 'CADANGAN' : 'UTAMA';
+      name.appendChild(role);
+      cell(tr, p.uid + ' (' + p.sid + ')', 'ids');
+      body.appendChild(tr);
+    });
+
+    // Jam 00.00 dianggap "jam belum ditentukan" → tampilkan tanggal saja
+    const start = new Date(ev.startAt);
+    const hasTime = fmt(start, { hour: '2-digit', minute: '2-digit', hour12: false }) !== '00.00';
+    $('e-when').textContent = fmt(start, hasTime ? { dateStyle: 'full', timeStyle: 'short' } : { dateStyle: 'full' }) + (hasTime ? ' WIB' : '');
+    $('e-where').textContent = ev.venue;
+    $('e-org').textContent = ev.organizer;
+
+    $('i-order').textContent = tk.orderId;
+    $('i-gw').textContent = tk.gatewayId || '—';
+    $('i-date').textContent = tk.paidAt ? fmt(tk.paidAt, { dateStyle: 'long', timeStyle: 'short' }) + ' WIB' : '—';
+    $('i-desc').textContent = 'Pendaftaran ' + ev.name + ' – ' + (/^tim\s/i.test(tk.teamName) ? '' : 'Tim ') + tk.teamName;
+    $('i-fee').textContent = rupiah(tk.amount);
+    $('i-code').textContent = rupiah(tk.uniqueCode);
+    $('i-code-row').hidden = !tk.uniqueCode;
+    $('i-total').textContent = rupiah(tk.payAmount);
+    $('i-method').textContent = tk.source === 'web' ? 'QRIS' + (tk.issuer ? ' (' + tk.issuer + ')' : '') : 'Konfirmasi panitia';
+    $('i-contact').textContent = ev.contactWa ? 'Bantuan panitia: WhatsApp ' + localWa(ev.contactWa) : '';
+
+    if (tk.groupLink) { $('join-link').href = tk.groupLink; $('join').hidden = false; }
+  }
+
+  async function load() {
+    if (!orderId || !token) return state('Link tiket tidak lengkap', 'Buka tiket lewat tombol "Lihat E-Ticket" di halaman pendaftaran kamu.');
+    try {
+      const r = await fetch('/api/ticket/' + encodeURIComponent(orderId) + '?token=' + encodeURIComponent(token), { cache: 'no-store' });
+      const d = await r.json().catch(() => ({}));
+      if (r.status === 409 && d.code === 'not_paid') {
+        if (d.status === 'Expired' || d.status === 'Failed') return state('Pembayaran tidak berhasil', 'QRIS sudah kedaluwarsa atau dibatalkan. Silakan daftar ulang.');
+        state('Menunggu pembayaran…', 'Tiket muncul otomatis begitu pembayaran terverifikasi.', true);
+        clearTimeout(timer); timer = setTimeout(load, 4000); return;
+      }
+      if (r.status === 429) {
+        state('Terlalu banyak permintaan', 'Tunggu sebentar, halaman akan mencoba lagi.', true);
+        clearTimeout(timer); timer = setTimeout(load, 15000); return;
+      }
+      if (!r.ok || !d.ticket) return state('Tiket tidak ditemukan', 'Pastikan link tiket lengkap dan tidak terpotong.');
+      render(d.ticket, d.event);
+    } catch (_) {
+      state('Gagal memuat tiket', 'Periksa koneksi internet kamu, lalu coba lagi.');
+      clearTimeout(timer); timer = setTimeout(load, 6000);
+    }
+  }
+
+  $('btn-print').addEventListener('click', () => window.print());
+  $('btn-copy').addEventListener('click', async () => {
+    const b = $('btn-copy');
+    try { await navigator.clipboard.writeText(location.href); b.textContent = 'Link tersalin ✓'; }
+    catch (_) { b.textContent = 'Salin manual dari address bar'; }
+    setTimeout(() => (b.textContent = 'Salin Link Tiket'), 2500);
+  });
+  load();
+})();
+</script>
+</body>
+</html>

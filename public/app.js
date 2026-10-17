@@ -400,6 +400,11 @@ function renderPaid(r) {
   $('#sPlayers').innerHTML = (r.players || []).map((p, i) =>
     `<li><span>${i + 1}. ${esc(p.nick)}${i >= 5 ? ' <small style="color:var(--violet)">CADANGAN</small>' : ''}</span><span>${esc(p.uid)} (${esc(p.sid)})</span></li>`
   ).join('');
+  if (r.ticketCode) $('#sCode').textContent = r.ticketCode;
+  if (r.ticketUrl) {
+    $('#ticketBtn').href = r.ticketUrl;
+    $('#ticketBtn').classList.remove('hidden');
+  }
   if (r.waGroupLink) {
     $('#waBtn').href = r.waGroupLink;
     $('#waBtn').classList.remove('hidden');
@@ -408,20 +413,6 @@ function renderPaid(r) {
   }
   try { localStorage.removeItem('lastOrder'); } catch (_) {}
 }
-
-/* Unduh E-Ticket */
-$('#downloadTicketBtn').addEventListener('click', async () => {
-  try {
-    if (!window.html2canvas) throw new Error();
-    const canvas = await html2canvas($('#eTicketCard'), { scale: 2, backgroundColor: '#040a17', logging: false });
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = `ETicket-${($('#sTeam').textContent || 'Tim').replace(/[^\w-]+/g, '_')}-HireCupVol2.png`;
-    a.click();
-  } catch (_) {
-    alert('Gagal mengunduh E-Ticket. Silakan screenshot manual.');
-  }
-});
 
 /* Mulai */
 const orderParam = new URLSearchParams(location.search).get('order');

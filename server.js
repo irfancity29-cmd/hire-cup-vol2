@@ -111,6 +111,7 @@ app.post('/api/register', registerLimiter, wrap(async (req, res) => {
   const doc = await Registration.create({
     orderId,
     ...value,
+    ...reg.newTicket(),
     amount: config.fee,
     expiresAt: new Date(Date.now() + config.paymentExpiresMinutes * 60 * 1000),
   });
@@ -148,6 +149,7 @@ app.get('/api/registrations/:orderId', wrap(async (req, res) => {
   if (r.status !== 'Paid') r = await reg.reconcile(r);
   const paid = r.status === 'Paid';
   const pending = r.status === 'Pending';
+  if (paid) r = await reg.ensureTicket(r);
   let qrisImage = null;
   if (pending && r.qrString && req.query.qr !== '0') {
     try {
@@ -169,6 +171,61 @@ app.get('/api/registrations/:orderId', wrap(async (req, res) => {
     payAmount: pending ? r.payAmount || r.amount : null,
     expiresAt: pending ? r.expiresAt : null,
     waGroupLink: paid ? config.waGroupLink : null,
+    // Link e-ticket (berisi token rahasia) hanya untuk pemegang link status ini
+    ticketCode: paid ? r.ticketCode : null,
+    ticketUrl: paid ? reg.ticketUrl(r) : null,
+  });
+}));
+
+/* E-ticket + invoice yang bisa dicetak / disimpan PDF: /ticket.html?o=<orderId>&t=<token> */
+const ticketLimiter = rateLimit({ windowMs: 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Terlalu banyak permintaan. Coba lagi sebentar.' } });
+
+function safeEqual(a, b) {
+  const x = Buffer.from(String(a));
+  const y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+app.get('/api/ticket/:orderId', ticketLimiter, wrap(async (req, res) => {
+  let r = await Registration.findOne({ orderId: String(req.params.orderId) });
+  // Balasan sama untuk "tidak ada" dan "token salah" supaya tidak bisa ditebak
+  if (!r || !r.ticketToken || !safeEqual(req.query.token || '', r.ticketToken)) {
+    return res.status(404).json({ error: 'Tiket tidak ditemukan.' });
+  }
+  if (r.status === 'Pending') r = await reg.reconcile(r);
+  if (r.status !== 'Paid') return res.status(409).json({ error: 'Pembayaran belum terverifikasi.', code: 'not_paid', status: r.status });
+
+  let qrImage = null;
+  try {
+    qrImage = await QRCode.toDataURL(`HIRECUP2|${r.orderId}|${r.ticketCode}`, { errorCorrectionLevel: 'M', margin: 1, width: 320 });
+  } catch (_) { /* tiket tetap tampil tanpa QR */ }
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    ticket: {
+      ticketCode: r.ticketCode,
+      orderId: r.orderId,
+      gatewayId: r.gatewayId || null,
+      teamName: r.teamName,
+      captainWa: r.captainWa || '',
+      players: r.players.map((p) => ({ nick: p.nick, uid: p.uid, sid: p.sid })),
+      source: r.source,
+      paidAt: r.paidAt,
+      amount: r.amount,
+      uniqueCode: r.uniqueCode ?? (r.payAmount && r.amount ? r.payAmount - r.amount : 0),
+      payAmount: r.payAmount || r.amount,
+      issuer: r.paymentIssuer || null,
+      groupLink: config.waGroupLink || null,
+      qrImage,
+    },
+    event: {
+      name: 'HIRE CUP Vol 2',
+      season: 'SEASON 2 · MOBILE LEGENDS 5V5',
+      startAt: config.tournamentAt,
+      venue: config.venue,
+      organizer: config.organizer,
+      contactWa: config.contactWa || null,
+    },
   });
 }));
 
@@ -229,8 +286,10 @@ admin.use(requireAdmin);
 
 admin.get('/registrations', wrap(async (_req, res) => {
   await reg.expireStale();
+  // Tim lunas dari sebelum fitur e-ticket ada → buatkan kode tiketnya
+  for (const r of await Registration.find({ status: 'Paid', ticketToken: { $in: [null, ''] } })) await reg.ensureTicket(r);
   const list = await Registration.find().sort({ createdAt: -1 }).lean();
-  res.json({ stats: await reg.stats(), registrations: list.map(({ _id, __v, teamKey, ...r }) => r) });
+  res.json({ stats: await reg.stats(), registrations: list.map(({ _id, __v, teamKey, qrString, ...r }) => r) });
 }));
 
 const findReg = async (req, res) => {
@@ -302,6 +361,7 @@ admin.post('/registrations', wrap(async (req, res) => {
   if (name.length < 2 || name.length > 30) return res.status(400).json({ error: 'Nama tim 2–30 karakter.' });
   if (await Registration.findOne({ teamKey: teamKeyOf(name), status: 'Paid' })) return res.status(409).json({ error: 'Nama tim sudah terdaftar.' });
   await Registration.create({
+    ...reg.newTicket(),
     orderId: newOrderId(), teamName: name, teamKey: teamKeyOf(name), captainWa: normalizeWa(b.captainWa),
     players: [], amount: 0, status: 'Paid', paidAt: new Date(), source: 'manual',
   });
@@ -317,6 +377,7 @@ admin.post('/import-sheet', wrap(async (_req, res) => {
     if (teamName.length < 2) continue;
     if (await Registration.findOne({ teamKey: teamKeyOf(teamName), status: 'Paid' })) continue;
     await Registration.create({
+      ...reg.newTicket(),
       orderId: newOrderId(), teamName, teamKey: teamKeyOf(teamName), players: [], amount: 0,
       status: 'Paid', paidAt: new Date(), source: 'sheet', sheetSynced: true,
     });

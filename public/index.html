@@ -10,8 +10,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/site.css">
-<!-- Untuk unduh E-Ticket sebagai gambar -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
 </head>
 <body>
 
@@ -299,12 +297,13 @@
       <div class="status-card">
         <div class="icon">🏆</div>
         <h1>Tim kamu resmi terdaftar!</h1>
-        <p>Pembayaran sudah terverifikasi. Unduh E-Ticket dan gabung ke grup WhatsApp peserta. Halaman ini bisa dibuka lagi lewat link yang sama.</p>
+        <p>Pembayaran sudah terverifikasi. Simpan E-Ticket & invoice tim kamu, lalu gabung ke grup WhatsApp peserta. Halaman ini bisa dibuka lagi lewat link yang sama.</p>
         <div class="status-actions">
-          <a id="waBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-gold btn-block hidden">Gabung Grup WhatsApp</a>
+          <a id="ticketBtn" href="#" target="_blank" rel="noopener" class="btn btn-gold btn-block hidden">🎟 Lihat & Cetak E-Ticket</a>
+          <a id="waBtn" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-block hidden">Gabung Grup WhatsApp</a>
           <p id="waPending" class="hidden">Link grup akan dibagikan panitia lewat WhatsApp.</p>
-          <button type="button" id="downloadTicketBtn" class="btn btn-ghost btn-block">Unduh E-Ticket</button>
         </div>
+        <p style="font-size:13px;margin-top:12px">Di halaman E-Ticket, tekan <b style="color:var(--gold2)">Cetak / Simpan PDF</b> untuk menyimpan tiket ke HP atau laptop.</p>
       </div>
 
       <div class="ticket" id="eTicketCard">
@@ -312,7 +311,7 @@
           <small>OFFICIAL E-TICKET · HIRE CUP VOL 2</small>
           <h2 id="sTeam">-</h2>
           <div class="ticket-meta">
-            <div>Kode<b id="sCode">-</b></div>
+            <div>Kode Tiket<b id="sCode">-</b></div>
             <div style="text-align:right">Kapten<b id="sWa">-</b></div>
           </div>
           <span class="ticket-ok">● LUNAS & TERVERIFIKASI</span>

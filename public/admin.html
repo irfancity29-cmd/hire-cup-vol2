@@ -195,7 +195,7 @@ function renderRows() {
   const want = $('#filterStatus').value.split(',').filter(Boolean);
   const q = $('#search').value.trim().toLowerCase();
   const rows = all.filter((r) => (!want.length || want.includes(r.status)) &&
-    (!q || [r.teamName, r.orderId, r.captainWa].some((v) => String(v || '').toLowerCase().includes(q))));
+    (!q || [r.teamName, r.orderId, r.captainWa, r.ticketCode].some((v) => String(v || '').toLowerCase().includes(q))));
   if (!rows.length) {
     $('#rows').innerHTML = '<tr><td colspan="6" class="p-4 text-center text-mist">Tidak ada data.</td></tr>';
     return;
@@ -204,7 +204,7 @@ function renderRows() {
     <tr class="border-t border-line align-top">
       <td class="p-2">
         <p class="font-semibold text-white">${esc(r.teamName)} ${r.hidden ? '<span class="badge b-Expired">disembunyikan</span>' : ''}</p>
-        <p class="text-xs text-mist">${esc(r.orderId)} · ${esc(r.source)}${r.status === 'Paid' && r.source === 'web' && !r.sheetSynced ? ' · <span class="text-amber-300">belum di Sheets</span>' : ''}</p>
+        <p class="text-xs text-mist">${esc(r.orderId)} · ${esc(r.source)}${r.status === 'Paid' && r.ticketCode ? ' · tiket <b class="text-gold tracking-widest">' + esc(r.ticketCode) + '</b>' : ''}${r.status === 'Paid' && r.source === 'web' && !r.sheetSynced ? ' · <span class="text-amber-300">belum di Sheets</span>' : ''}</p>
       </td>
       <td class="p-2"><span class="badge b-${esc(r.status)}">${STATUS_LABEL[r.status] || esc(r.status)}</span>${r.paidLate ? '<p class="text-xs text-amber-300 mt-1">bayar telat</p>' : ''}</td>
       <td class="p-2">${r.captainWa ? `<a class="text-gold hover:underline" target="_blank" rel="noopener" href="https://wa.me/${esc(r.captainWa)}">${esc(r.captainWa)}</a>` : '-'}</td>
@@ -212,6 +212,7 @@ function renderRows() {
       <td class="p-2 text-xs text-mist">Daftar: ${fmtTime(r.createdAt)}${r.paidAt ? '<br>Lunas: ' + fmtTime(r.paidAt) : ''}</td>
       <td class="p-2">
         <div class="flex flex-wrap gap-1 justify-end">
+          ${r.status === 'Paid' && r.ticketToken ? `<a class="btn" target="_blank" rel="noopener" href="/ticket.html?o=${encodeURIComponent(r.orderId)}&t=${esc(r.ticketToken)}">E-Ticket</a>` : ''}
           <button class="btn" data-act="rename" data-id="${esc(r.orderId)}">Ganti nama</button>
           <button class="btn" data-act="hide" data-id="${esc(r.orderId)}">${r.hidden ? 'Tampilkan' : 'Sembunyikan'}</button>
           ${r.status !== 'Paid' && r.gatewayId ? `<button class="btn" data-act="check" data-id="${esc(r.orderId)}">Cek bayar</button>` : ''}
