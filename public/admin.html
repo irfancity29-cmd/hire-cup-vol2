@@ -7,29 +7,29 @@
 <title>Admin Hire Cup</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Teko:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@600;700;800&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = { theme: { extend: {
-    colors: { ink: '#0b0f19', panel: '#131826', well: '#080c14', line: '#222b40', gold: '#f0b90b', crimson: '#ef4444', mist: '#94a3b8' },
-    fontFamily: { display: ['Teko', 'Impact', 'sans-serif'], body: ['Barlow', 'system-ui', 'sans-serif'] } } } };
+    colors: { ink: '#040a17', panel: '#0c1a36', well: '#091631', line: '#1d3866', gold: '#e8b54a', crimson: '#ef4444', mist: '#8ea5cb' },
+    fontFamily: { display: ['Oxanium', 'sans-serif'], body: ['Chakra Petch', 'system-ui', 'sans-serif'] } } } };
 </script>
 <style>
-  body { background: #0b0f19; color: #f1f5f9; font-family: 'Barlow', system-ui, sans-serif; }
-  .field { background: #080c14; border: 1px solid #222b40; color: #f1f5f9; padding: .45rem .6rem; font-size: .95rem; border-radius: 4px; }
-  .field:focus { outline: none; border-color: #f0b90b; }
-  .btn { border: 1px solid #222b40; color: #cbd5e1; padding: .35rem .7rem; border-radius: 4px; font-size: .85rem; white-space: nowrap; }
-  .btn:hover:not(:disabled) { border-color: #f0b90b; color: #fff; }
+  body { background: radial-gradient(900px 400px at 50% -100px, #1f6bff44, transparent 70%), #040a17; color: #e8f1ff; font-family: 'Chakra Petch', system-ui, sans-serif; font-size: 16px; min-height: 100vh; }
+  .field { background: #091631; border: 1px solid #1d3866; color: #e8f1ff; padding: .45rem .6rem; font-size: .95rem; border-radius: 4px; }
+  .field:focus { outline: none; border-color: #38c6ff; }
+  .btn { border: 1px solid #1d3866; color: #cfe0ff; font-weight: 600; padding: .35rem .7rem; border-radius: 4px; font-size: .85rem; white-space: nowrap; }
+  .btn:hover:not(:disabled) { border-color: #38c6ff; color: #fff; }
   .btn:disabled { opacity: .5; cursor: not-allowed; }
-  .btn-gold { background: linear-gradient(180deg, #facc15, #ca8a04); color: #0f172a; border: 0; font-weight: 600; }
-  .btn-gold:hover:not(:disabled) { filter: brightness(1.08); color: #0f172a; }
+  .btn-gold { background: linear-gradient(180deg, #ffd98a, #e8b54a); color: #2a1c00; border: 0; font-weight: 600; }
+  .btn-gold:hover:not(:disabled) { filter: brightness(1.06); color: #2a1c00; border-color: transparent; }
   .btn-red { border-color: rgba(239,68,68,.5); color: #fca5a5; }
-  .tab.active { color: #f0b90b; border-color: #f0b90b; }
+  .tab.active { color: #e8b54a; border-color: #e8b54a; }
   .badge { font-size: .7rem; padding: .1rem .45rem; border-radius: 4px; font-weight: 600; }
   .b-Paid { background: rgba(16,185,129,.15); color: #6ee7b7; }
   .b-Pending { background: rgba(240,185,11,.15); color: #fcd34d; }
   .b-Expired, .b-Failed { background: rgba(148,163,184,.12); color: #94a3b8; }
-  .match { background: #0e1320; border: 1px solid #222b40; border-radius: 6px; }
+  .match { background: #091631; border: 1px solid #1d3866; border-radius: 10px; }
 </style>
 </head>
 <body class="min-h-screen antialiased">

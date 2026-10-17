@@ -70,6 +70,7 @@ app.get('/api/config', wrap(async (_req, res) => {
     minPlayers: config.minPlayers,
     maxPlayers: config.maxPlayers,
     closeAt: config.closeAt,
+    contactWa: config.contactWa || null,
     paidCount: s.paidCount,
     prizeTotal: s.prizeTotal,
     closedReason: reg.closedReason(s),

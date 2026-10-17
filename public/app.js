@@ -4,37 +4,73 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const pad = (n) => String(n).padStart(2, '0');
 const rupiah = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const initial = (s) => (String(s || '?').trim().charAt(0) || '?').toUpperCase();
 
-let CONFIG = { fee: 150000, basePrize: 100000, prizePerTeam: 150000, maxTeams: 32, minPlayers: 5, maxPlayers: 7, closeAt: null, closedReason: null };
+let CONFIG = { fee: 150000, basePrize: 100000, prizePerTeam: 150000, maxTeams: 32, minPlayers: 5, maxPlayers: 7, closeAt: null, closedReason: null, paidCount: 0 };
 
 $('#yr').textContent = new Date().getFullYear();
 
 /* Menu mobile */
-const menuBtn = $('#menuBtn');
-const mobileNav = $('#mobileNav');
-menuBtn.addEventListener('click', () => {
-  const open = mobileNav.classList.toggle('hidden') === false;
-  menuBtn.setAttribute('aria-expanded', String(open));
+const links = $('#links');
+$('#burger').addEventListener('click', () => {
+  const open = links.classList.toggle('open');
+  $('#burger').setAttribute('aria-expanded', String(open));
 });
-$$('#mobileNav a').forEach((a) => a.addEventListener('click', () => { mobileNav.classList.add('hidden'); menuBtn.setAttribute('aria-expanded', 'false'); }));
+links.addEventListener('click', (e) => {
+  if (e.target.tagName === 'A') { links.classList.remove('open'); $('#burger').setAttribute('aria-expanded', 'false'); }
+});
 
-/* Konfigurasi & prize pool */
+/* Animasi muncul saat di-scroll */
+const io = 'IntersectionObserver' in window
+  ? new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: 0.12 })
+  : null;
+$$('.reveal').forEach((n) => (io ? io.observe(n) : n.classList.add('in')));
+
+/* Konfigurasi, prize pool, slot */
+let lastPrize = null;
+function renderConfig() {
+  const c = CONFIG;
+  const prize = c.prizeTotal ?? c.basePrize;
+  const left = Math.max(0, c.maxTeams - (c.paidCount || 0));
+  const el = $('#prizeTotal');
+  el.textContent = rupiah(prize);
+  if (lastPrize !== null && prize !== lastPrize) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+  lastPrize = prize;
+
+  $('#st-fee').textContent = rupiah(c.fee);
+  $('#st-prize').textContent = rupiah(prize);
+  $('#st-slots').textContent = `${c.paidCount || 0}/${c.maxTeams}`;
+  $('#feeAbout').textContent = rupiah(c.fee);
+  $('#feeBox').textContent = rupiah(c.fee);
+  $('#poolBase').textContent = rupiah(c.basePrize);
+  $('#poolPerTeam').textContent = rupiah(c.prizePerTeam);
+  $('#poolPer').textContent = rupiah(c.prizePerTeam);
+  $('#poolTeamCount').textContent = c.paidCount || 0;
+  $('#poolSlotsLeft').textContent = left;
+  $('#slotNow').textContent = c.paidCount || 0;
+  $('#slotMax').textContent = c.maxTeams;
+  $('#slotFill').style.width = Math.min(100, ((c.paidCount || 0) / c.maxTeams) * 100) + '%';
+  $('#payBtn').textContent = `Lanjut ke Pembayaran · ${rupiah(c.fee)}`;
+  setClosed(c.closedReason);
+  if (c.contactWa) {
+    const wa = 'https://wa.me/' + c.contactWa + '?text=' + encodeURIComponent('Halo panitia HIRE CUP Vol 2, saya mau tanya soal pendaftaran.');
+    ['#contactBtn', '#waFloat'].forEach((s) => { $(s).href = wa; $(s).classList.remove('hidden'); });
+    $('#trustContact').innerHTML ='WhatsApp <a href="' + wa + '" target="_blank" rel="noopener">+' + esc(c.contactWa) + '</a>';
+  }
+}
+
 async function loadConfig() {
   try {
     const res = await fetch('/api/config');
     if (!res.ok) throw new Error();
     CONFIG = { ...CONFIG, ...(await res.json()) };
+    $('#poolLive').classList.remove('off');
+    $('#poolLiveText').textContent = 'LIVE';
   } catch (_) {
-    $('#slotStatus').textContent = 'Gagal memuat';
+    $('#poolLive').classList.add('off');
+    $('#poolLiveText').textContent = 'GAGAL MEMUAT';
   }
-  $('#prizeTotal').textContent = rupiah(CONFIG.prizeTotal ?? CONFIG.basePrize);
-  $('#poolTeamCount').textContent = CONFIG.paidCount ?? 0;
-  $('#poolBase').textContent = rupiah(CONFIG.basePrize);
-  $('#poolPerTeam').textContent = rupiah(CONFIG.prizePerTeam);
-  $('#feeAbout').textContent = rupiah(CONFIG.fee);
-  $('#slotStatus').textContent = `${CONFIG.paidCount ?? 0} / ${CONFIG.maxTeams} Tim Terisi`;
-  $('#payBtn').textContent = `Lanjut ke Pembayaran (${rupiah(CONFIG.fee)})`;
-  setClosed(CONFIG.closedReason);
+  renderConfig();
   startCountdown();
   refreshPlayers();
 }
@@ -46,21 +82,32 @@ function setClosed(reason) {
 }
 
 /* Daftar tim lunas */
-async function loadVerifiedTeams() {
-  const grid = $('#verifiedTeamsGrid');
+let teams = [];
+function renderTeams() {
+  const grid = $('#teamsGrid');
+  const q = $('#teamSearch').value.trim().toLowerCase();
+  const list = teams.filter((t) => !q || t.teamName.toLowerCase().includes(q));
+  if (!teams.length) {
+    grid.innerHTML = '<div class="empty">Belum ada tim yang terdaftar. Jadilah yang pertama!</div>';
+    return;
+  }
+  if (!list.length) {
+    grid.innerHTML = '<div class="empty">Tidak ada tim dengan nama itu.</div>';
+    return;
+  }
+  grid.innerHTML = list.map((t) => `<div class="team"><div class="av">${esc(initial(t.teamName))}</div><div><div class="nm" title="${esc(t.teamName)}">${esc(t.teamName)}</div><div class="id">✓ LUNAS</div></div></div>`).join('');
+}
+async function loadTeams() {
   try {
     const res = await fetch('/api/teams');
     if (!res.ok) throw new Error();
-    const teams = await res.json();
-    if (!teams.length) {
-      grid.innerHTML = '<div class="text-mist text-sm col-span-full py-4">Belum ada tim yang mendaftar. Jadilah yang pertama!</div>';
-      return;
-    }
-    grid.innerHTML = teams.map((t) => `<div class="frame chamfer-sm pop"><div class="inner chamfer-sm p-4 flex items-center justify-between gap-2"><span class="font-semibold text-white truncate">${esc(t.teamName)}</span><span class="text-xs bg-gold/15 text-gold px-2 py-0.5 rounded shrink-0">Lunas</span></div></div>`).join('');
+    teams = await res.json();
+    renderTeams();
   } catch (_) {
-    grid.innerHTML = '<div class="text-crimson text-sm col-span-full py-4">Gagal memuat daftar tim. Coba muat ulang halaman.</div>';
+    $('#teamsGrid').innerHTML = '<div class="empty">Gagal memuat daftar tim. Coba muat ulang halaman.</div>';
   }
 }
+$('#teamSearch').addEventListener('input', renderTeams);
 
 /* Countdown */
 let cdTimer;
@@ -68,7 +115,7 @@ function startCountdown() {
   clearInterval(cdTimer);
   if (!CONFIG.closeAt) return;
   const target = new Date(CONFIG.closeAt).getTime();
-  $('#closeLabel').textContent = 'Batas pendaftaran: ' + new Date(target).toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+  $('#closeLabel').textContent = 'Pendaftaran ditutup ' + new Date(target).toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
   const set = (k, v) => { $(`[data-cd="${k}"]`).textContent = v; };
   const tick = () => {
     const left = Math.max(0, target - Date.now());
@@ -79,6 +126,7 @@ function startCountdown() {
     set('s', pad(s % 60));
     if (left === 0) {
       clearInterval(cdTimer);
+      $('#closeLabel').textContent = 'Pendaftaran sudah ditutup';
       setClosed('Pendaftaran sudah ditutup.');
     }
   };
@@ -88,7 +136,7 @@ function startCountdown() {
 
 /* Bracket resmi (dari panitia) */
 async function loadBracket() {
-  const container = $('#liquipediaBracket');
+  const box = $('#bracketBox');
   const note = $('#bracketNote');
   let data = { published: false, rounds: [] };
   try {
@@ -96,38 +144,46 @@ async function loadBracket() {
     if (res.ok) data = await res.json();
   } catch (_) {}
 
+  const slot = (name, score, cls) => `<div class="slot ${cls}"><span class="nm" title="${esc(name)}">${esc(name)}</span><span class="sc">${score ?? '-'}</span></div>`;
+
   if (!data.published || !data.rounds.length) {
-    note.textContent = 'Bracket resmi akan diumumkan setelah pendaftaran ditutup dan undian dilakukan panitia.';
+    note.textContent = 'Bracket resmi diumumkan setelah pendaftaran ditutup dan undian dilakukan panitia.';
     const names = ['32 Besar', '16 Besar', 'Perempat Final', 'Semi Final', 'Grand Final'];
-    container.innerHTML = names.map((name, ri) => `<div class="lp-round"><div class="lp-round-header">${name}</div>${
-      Array.from({ length: 16 >> ri }, () => '<div class="lp-matchup"><div class="lp-team"><span class="name">TBD</span><span class="score">-</span></div><div class="lp-team"><span class="name">TBD</span><span class="score">-</span></div></div>').join('')
-    }</div>`).join('');
+    box.innerHTML = names.map((n, ri) => `<div class="round${ri === 4 ? ' last' : ''}"><h4>${n}</h4><div class="rb">${
+      Array.from({ length: 16 >> ri }, () => `<div class="match">${slot('TBD', null, 'tbd')}${slot('TBD', null, 'tbd')}</div>`).join('')
+    }</div></div>`).join('');
+    $('#champion').classList.add('hidden');
     return;
   }
 
-  note.textContent = 'Bracket resmi. Pemenang setiap match ditandai warna emas.';
-  const team = (t, score, m) => {
-    const won = t && m.winner === t.id;
-    const label = t ? esc(t.name) : (m.a || m.b) && m.winner ? 'BYE' : 'Menunggu…';
-    return `<div class="lp-team${won ? ' winner' : ''}"><span class="name" title="${t ? esc(t.name) : ''}">${label}</span><span class="score">${score ?? '-'}</span></div>`;
+  note.textContent = 'Bracket resmi — diperbarui panitia setiap pertandingan selesai.';
+  const side = (t, score, m) => {
+    if (!t) return slot(m.winner ? 'BYE' : 'Menunggu…', null, 'tbd');
+    return slot(t.name, score, m.winner === t.id ? 'won' : '');
   };
-  container.innerHTML = data.rounds.map((r) => `<div class="lp-round"><div class="lp-round-header">${esc(r.name)}</div>${
-    r.matches.map((m) => `<div class="lp-matchup">${team(m.a, m.scoreA, m)}${team(m.b, m.scoreB, m)}</div>`).join('')
-  }</div>`).join('');
+  const last = data.rounds.length - 1;
+  box.innerHTML = data.rounds.map((r, ri) => `<div class="round${ri === last ? ' last' : ''}"><h4>${esc(r.name)}</h4><div class="rb">${
+    r.matches.map((m) => `<div class="match${m.winner ? ' done' : ''}">${side(m.a, m.scoreA, m)}${side(m.b, m.scoreB, m)}</div>`).join('')
+  }</div></div>`).join('');
+
+  const fin = data.rounds[last].matches[0];
+  const champ = fin && fin.winner && [fin.a, fin.b].find((t) => t && t.id === fin.winner);
+  $('#champion').classList.toggle('hidden', !champ);
+  if (champ) $('#championName').textContent = 'JUARA: ' + champ.name;
 }
 
-/* Player dinamis */
+/* Roster pemain dinamis */
 const list = $('#playerList');
 const addBtn = $('#addPlayerBtn');
 function playerRow() {
   const row = document.createElement('div');
-  row.className = 'bg-well/60 border border-line p-3 pop';
+  row.className = 'prow';
   row.innerHTML = `
-    <div class="flex justify-between mb-2"><span class="text-gold font-display text-xl row-title"></span><button type="button" class="remove-btn text-sm text-mist hover:text-crimson">Hapus</button></div>
-    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
-      <div class="col-span-2"><input class="field" data-f="nick" maxlength="40" placeholder="Nickname"><p class="err" data-perr="nick"></p></div>
-      <div class="col-span-2"><input class="field" data-f="uid" inputmode="numeric" maxlength="12" placeholder="User ID"><p class="err" data-perr="uid"></p></div>
-      <div class="col-span-2 sm:col-span-1"><input class="field" data-f="sid" inputmode="numeric" maxlength="6" placeholder="Server ID"><p class="err" data-perr="sid"></p></div>
+    <div class="prow-h"><b class="row-title"></b><button type="button" class="remove-btn">Hapus</button></div>
+    <div class="pgrid">
+      <div class="nick"><input class="field" data-f="nick" maxlength="40" placeholder="Nickname" aria-label="Nickname"><p class="err" data-perr="nick"></p></div>
+      <div><input class="field" data-f="uid" inputmode="numeric" maxlength="12" placeholder="User ID" aria-label="User ID"><p class="err" data-perr="uid"></p></div>
+      <div><input class="field" data-f="sid" inputmode="numeric" maxlength="6" placeholder="Server ID" aria-label="Server ID"><p class="err" data-perr="sid"></p></div>
     </div>`;
   row.querySelector('.remove-btn').addEventListener('click', () => {
     if (list.children.length > CONFIG.minPlayers) { row.remove(); refreshPlayers(); }
@@ -137,7 +193,7 @@ function playerRow() {
 function refreshPlayers() {
   const rows = [...list.children];
   rows.forEach((r, i) => {
-    r.querySelector('.row-title').textContent = 'Player ' + (i + 1) + (i >= CONFIG.minPlayers ? ' (cadangan)' : '');
+    r.querySelector('.row-title').innerHTML = 'Pemain ' + (i + 1) + (i >= CONFIG.minPlayers ? '<em>CADANGAN</em>' : '');
     r.querySelector('.remove-btn').classList.toggle('hidden', rows.length <= CONFIG.minPlayers);
   });
   $('#playerCount').textContent = `${rows.length}/${CONFIG.maxPlayers}`;
@@ -164,6 +220,7 @@ function collectForm() {
 function clearErrors() {
   $$('#regForm .err').forEach((e) => { e.textContent = ''; });
   $$('#regForm .field').forEach((f) => f.removeAttribute('aria-invalid'));
+  $('#formError').textContent = '';
 }
 function showErrors(fields) {
   const mark = (input, errEl, msg) => { if (!msg) return; errEl.textContent = msg; input.setAttribute('aria-invalid', 'true'); };
@@ -194,7 +251,7 @@ function validateLocal(d) {
   });
   if (rows.some((e) => Object.keys(e).length)) f.playerRows = rows;
   const uids = d.players.map((p) => p.uid).filter(Boolean);
-  if (new Set(uids).size !== uids.length) f.players = 'Ada User ID yang sama dipakai lebih dari satu player.';
+  if (new Set(uids).size !== uids.length) f.players = 'Ada User ID yang sama dipakai lebih dari satu pemain.';
   return f;
 }
 
@@ -208,7 +265,6 @@ $('#regForm').addEventListener('submit', async (e) => {
     if (!local.players) $('#formError').textContent = 'Periksa lagi kolom yang ditandai merah.';
     return;
   }
-
   const payBtn = $('#payBtn');
   payBtn.disabled = true;
   payBtn.textContent = 'Membuat tagihan pembayaran…';
@@ -225,17 +281,16 @@ $('#regForm').addEventListener('submit', async (e) => {
   } catch (err) {
     $('#formError').textContent = err.message;
     payBtn.disabled = false;
-    payBtn.textContent = `Lanjut ke Pembayaran (${rupiah(CONFIG.fee)})`;
+    payBtn.textContent = `Lanjut ke Pembayaran · ${rupiah(CONFIG.fee)}`;
   }
 });
 
 /* Halaman status setelah kembali dari WaroengPay: /?order=KODE */
-async function showStatus(orderId) {
+function showStatus(orderId) {
   $('#site').classList.add('hidden');
-  $('#view-success').classList.remove('hidden');
+  $('#view-status').classList.remove('hidden');
   window.scrollTo({ top: 0 });
   $('#pCode').textContent = orderId;
-
   let tries = 0;
   const poll = async () => {
     tries++;
@@ -243,10 +298,7 @@ async function showStatus(orderId) {
     try {
       const res = await fetch('/api/registrations/' + encodeURIComponent(orderId));
       r = await res.json();
-      if (res.status === 404) {
-        renderPending({ status: 'NotFound' });
-        return;
-      }
+      if (res.status === 404) return renderPending({ status: 'NotFound' });
       if (!res.ok) throw new Error();
     } catch (_) {
       renderPending({ status: 'Pending', teamName: '-' });
@@ -255,7 +307,6 @@ async function showStatus(orderId) {
     }
     if (r.status === 'Paid') return renderPaid(r);
     renderPending(r);
-    // Cek ulang tiap 3 detik selama ~5 menit, setelah itu tiap 15 detik
     if (r.status === 'Pending') setTimeout(poll, tries < 100 ? 3000 : 15000);
   };
   poll();
@@ -271,13 +322,14 @@ function renderPending(r) {
   if (r.payUrl) $('#pPayBtn').href = r.payUrl;
   $('#pRetryBtn').classList.toggle('hidden', pending);
   const text = {
-    Pending: ['Menunggu pembayaran', 'Kami sedang mengecek pembayaranmu ke WaroengPay. Halaman ini otomatis diperbarui. Kalau belum bayar, klik "Lanjutkan Pembayaran".'],
-    Expired: ['Tagihan kedaluwarsa', 'Waktu pembayaran sudah habis dan belum ada pembayaran masuk. Silakan daftar ulang.'],
-    Failed: ['Pembayaran gagal', 'Tagihan dibatalkan atau gagal dibuat. Silakan daftar ulang.'],
-    NotFound: ['Kode tidak ditemukan', 'Kode pendaftaran ini tidak ada. Periksa link-nya atau daftar ulang.'],
-  }[r.status] || ['Status tidak diketahui', ''];
-  $('#pTitle').textContent = text[0];
-  $('#pDesc').textContent = text[1];
+    Pending: ['⏳', 'Menunggu pembayaran', 'Kami sedang mengecek pembayaranmu ke WaroengPay. Halaman ini otomatis diperbarui. Belum bayar? Klik "Lanjutkan Pembayaran".'],
+    Expired: ['⌛', 'Tagihan kedaluwarsa', 'Waktu pembayaran habis dan belum ada pembayaran masuk. Silakan daftar ulang.'],
+    Failed: ['✖', 'Pembayaran gagal', 'Tagihan dibatalkan atau gagal dibuat. Silakan daftar ulang.'],
+    NotFound: ['❔', 'Kode tidak ditemukan', 'Kode pendaftaran ini tidak ada. Periksa link-nya atau daftar ulang.'],
+  }[r.status] || ['❔', 'Status tidak diketahui', ''];
+  $('#pIcon').textContent = text[0];
+  $('#pTitle').textContent = text[1];
+  $('#pDesc').textContent = text[2];
 }
 
 function renderPaid(r) {
@@ -287,25 +339,22 @@ function renderPaid(r) {
   $('#sCode').textContent = r.orderId;
   $('#sWa').textContent = r.captainWa;
   $('#sPlayers').innerHTML = (r.players || []).map((p, i) =>
-    `<li class="flex items-center justify-between py-2 text-sm"><span>${i + 1}. ${esc(p.nick)}${i >= 5 ? ' <span class="text-mist">(cadangan)</span>' : ''}</span><span class="text-mist">${esc(p.uid)} (${esc(p.sid)})</span></li>`
+    `<li><span>${i + 1}. ${esc(p.nick)}${i >= 5 ? ' <small style="color:var(--violet)">CADANGAN</small>' : ''}</span><span>${esc(p.uid)} (${esc(p.sid)})</span></li>`
   ).join('');
   if (r.waGroupLink) {
     $('#waBtn').href = r.waGroupLink;
     $('#waBtn').classList.remove('hidden');
-    $('#waPending').classList.add('hidden');
   } else {
-    $('#waPending').innerHTML = 'Link grup akan dibagikan panitia lewat WhatsApp.';
+    $('#waPending').classList.remove('hidden');
   }
   try { localStorage.removeItem('lastOrder'); } catch (_) {}
 }
 
-$$('[data-home]').forEach((b) => b.addEventListener('click', () => { window.location.href = '/'; }));
-$('#pRetryBtn').addEventListener('click', () => { window.location.href = '/#daftar'; });
-
 /* Unduh E-Ticket */
 $('#downloadTicketBtn').addEventListener('click', async () => {
   try {
-    const canvas = await html2canvas($('#eTicketCard'), { scale: 2, backgroundColor: '#0b0f19', logging: false });
+    if (!window.html2canvas) throw new Error();
+    const canvas = await html2canvas($('#eTicketCard'), { scale: 2, backgroundColor: '#040a17', logging: false });
     const a = document.createElement('a');
     a.href = canvas.toDataURL('image/png');
     a.download = `ETicket-${($('#sTeam').textContent || 'Tim').replace(/[^\w-]+/g, '_')}-HireCupVol2.png`;
@@ -321,15 +370,18 @@ if (orderParam) {
   showStatus(orderParam);
 } else {
   loadConfig();
-  loadVerifiedTeams();
+  loadTeams();
   loadBracket();
+  // Perbarui prize pool & daftar tim tiap 30 detik
+  setInterval(() => { loadConfig(); loadTeams(); }, 30000);
+
   // Pengingat kalau sebelumnya keluar di tengah pembayaran
   let last = null;
   try { last = localStorage.getItem('lastOrder'); } catch (_) {}
   if (last) {
     const bar = document.createElement('div');
-    bar.className = 'fixed bottom-4 inset-x-4 sm:inset-x-auto sm:right-4 sm:max-w-sm z-50 frame chamfer-sm';
-    bar.innerHTML = `<div class="inner chamfer-sm p-4 text-sm"><p class="text-slate-200">Kamu punya pendaftaran yang belum selesai.</p><div class="mt-3 flex gap-2"><a class="btn-gold chamfer-sm px-4 py-1.5 text-xl leading-none pt-2" href="/?order=${encodeURIComponent(last)}">Cek status</a><button type="button" class="btn-ghost chamfer-sm px-3 py-1.5">Tutup</button></div></div>`;
+    bar.className = 'resume';
+    bar.innerHTML = `<p>Kamu punya pendaftaran yang belum selesai.</p><div><a class="btn btn-gold" href="/?order=${encodeURIComponent(last)}">Cek Status</a><button type="button" class="btn btn-ghost">Tutup</button></div>`;
     bar.querySelector('button').addEventListener('click', () => { bar.remove(); try { localStorage.removeItem('lastOrder'); } catch (_) {} });
     document.body.appendChild(bar);
   }
