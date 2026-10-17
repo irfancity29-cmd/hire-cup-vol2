@@ -224,7 +224,7 @@
 
         <p class="form-error" id="formError" role="alert"></p>
         <button type="submit" id="payBtn" class="btn btn-gold btn-lg btn-block">Lanjut ke Pembayaran</button>
-        <p class="form-hint">Kamu akan diarahkan ke halaman pembayaran QRIS WaroengPay. Setelah bayar, halaman status & E-Ticket terbuka otomatis — simpan link-nya.</p>
+        <p class="form-hint">Setelah klik, kode QRIS langsung muncul di halaman ini. Total bayar ditambah kode unik beberapa ratus rupiah agar terverifikasi otomatis. Setelah lunas, E-Ticket & link grup WhatsApp langsung tampil.</p>
       </form>
     </div>
   </div>
@@ -268,9 +268,27 @@
       <h1 id="pTitle">Menunggu pembayaran</h1>
       <p>Tim: <b id="pTeam" style="color:var(--text)">-</b></p>
       <p id="pDesc">Kami sedang mengecek pembayaranmu ke WaroengPay. Halaman ini otomatis diperbarui.</p>
-      <p id="pSpinner"><span class="spin"></span>Mengecek status…</p>
+
+      <!-- QRIS langsung di website -->
+      <div id="payBox" class="paybox hidden">
+        <p class="pay-hint">Scan QRIS dengan e-wallet atau m-banking apa saja</p>
+        <div class="qr-frame"><img id="qrImg" alt="Kode QRIS pembayaran" width="260" height="260"></div>
+        <div class="wallets">GoPay · OVO · DANA · ShopeePay · LinkAja · m-Banking</div>
+        <div class="pay-timer"><span>Sisa waktu bayar</span><b id="payTimer">--:--</b></div>
+        <div class="pay-sum">
+          <div><span>Biaya daftar</span><span id="sumBase">-</span></div>
+          <div><span>Kode unik</span><span id="sumCode">-</span></div>
+          <div class="total"><span>Total bayar</span><b id="sumTotal">-</b></div>
+        </div>
+        <p class="pay-note">Bayar <b>tepat sesuai Total bayar</b> (sudah termasuk kode unik) supaya terverifikasi otomatis.</p>
+        <button type="button" id="saveQrBtn" class="btn btn-ghost btn-block">Simpan Gambar QRIS</button>
+        <p class="pay-note" style="margin-top:10px">Bayar dari HP yang sama? Simpan gambar QRIS, lalu buka aplikasi e-wallet → Scan → pilih dari galeri.</p>
+      </div>
+
+      <p id="pSpinner"><span class="spin"></span>Menunggu pembayaran… halaman berubah otomatis setelah lunas</p>
       <div class="status-actions">
         <a id="pPayBtn" href="#" class="btn btn-gold btn-block hidden">Lanjutkan Pembayaran</a>
+        <a id="pPayAlt" href="#" target="_blank" rel="noopener" class="pay-alt hidden">Tidak bisa scan? Buka halaman pembayaran WaroengPay</a>
         <a href="/#daftar" id="pRetryBtn" class="btn btn-gold btn-block hidden">Daftar Ulang</a>
         <a href="/" class="btn btn-ghost btn-block">Kembali ke Beranda</a>
       </div>

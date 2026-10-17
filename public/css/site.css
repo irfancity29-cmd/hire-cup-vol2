@@ -388,3 +388,24 @@ footer small{display:block;margin-top:8px;opacity:.75;max-width:680px;margin-inl
 @media(max-width:520px){.trust .container{grid-template-columns:1fr}.wa-float span{display:none}.wa-float{padding:14px}}
 @media(prefers-reduced-motion:reduce){.hero-ring i{animation:none}}
 @media(max-width:400px){.stat span{font-size:10px;letter-spacing:.08em}}
+
+/* ===== Bayar QRIS langsung di website ===== */
+.paybox{margin-top:18px}
+.pay-hint{color:var(--muted);font-size:15px}
+.qr-frame{display:inline-block;margin:12px 0 6px;padding:12px;background:#fff;border-radius:12px;box-shadow:0 0 0 3px #38c6ff55,0 0 40px #1f6bff44;position:relative}
+.qr-frame::before{content:"QRIS";position:absolute;left:50%;top:-11px;transform:translateX(-50%);background:var(--gold);color:#2a1c00;font-weight:800;font-size:12px;letter-spacing:.2em;padding:2px 10px;border-radius:4px}
+.qr-frame img{display:block;width:240px;height:240px;image-rendering:pixelated}
+.wallets{color:var(--muted);font-size:13px;letter-spacing:.04em;margin-bottom:12px}
+.pay-timer{display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border:1px solid #38c6ff44;background:#38c6ff0d;border-radius:4px}
+.pay-timer span{color:var(--muted);font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+.pay-timer b{font-family:"Oxanium",sans-serif;font-size:26px;color:var(--gold2);font-variant-numeric:tabular-nums}
+.pay-timer.low b{color:#fca5a5}
+.pay-sum{text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:10px 14px;margin:14px 0 10px}
+.pay-sum div{display:flex;justify-content:space-between;gap:12px;padding:5px 0;color:var(--muted)}
+.pay-sum div span:last-child{color:var(--text);font-weight:600}
+.pay-sum .total{border-top:1px dashed var(--line);margin-top:4px;padding-top:9px}
+.pay-sum .total span{color:var(--text);font-weight:700}
+.pay-sum .total b{color:var(--gold2);font-family:"Oxanium",sans-serif;font-size:22px}
+.pay-note{color:var(--muted);font-size:14px;margin:6px 0 12px}
+.pay-note b{color:var(--gold2)}
+.pay-alt{display:block;color:var(--violet);font-size:14px;text-decoration:underline;margin-top:4px}

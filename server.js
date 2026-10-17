@@ -11,6 +11,7 @@ const { validateRegistration, normalizeWa, teamKeyOf, clean } = require('./lib/v
 const reg = require('./lib/registration');
 const bracket = require('./lib/bracket');
 const { readSheetTeams } = require('./lib/sheet');
+const QRCode = require('qrcode');
 const { checkPassword, issueToken, requireAdmin } = require('./lib/auth');
 
 const missingEnv = checkConfig();
@@ -126,10 +127,13 @@ app.post('/api/register', registerLimiter, wrap(async (req, res) => {
     await Registration.updateOne({ _id: doc._id }, {
       gatewayId: pay.gatewayId,
       payUrl: pay.payUrl,
+      qrString: pay.qrString,
+      uniqueCode: pay.uniqueCode,
       payAmount: pay.payAmount,
       ...(pay.expiresAt ? { expiresAt: pay.expiresAt } : {}),
     });
-    res.json({ orderId, payUrl: pay.payUrl });
+    // Website langsung menampilkan QRIS di halaman /?order=...; payUrl hanya cadangan
+    res.json({ orderId, payUrl: pay.payUrl, hasQris: !!pay.qrString });
   } catch (e) {
     console.error('Gagal membuat tagihan Waroeng Pay:', e.message);
     await Registration.updateOne({ _id: doc._id }, { status: 'Failed' });
@@ -143,13 +147,27 @@ app.get('/api/registrations/:orderId', wrap(async (req, res) => {
   if (!r) return res.status(404).json({ error: 'Pendaftaran tidak ditemukan.' });
   if (r.status !== 'Paid') r = await reg.reconcile(r);
   const paid = r.status === 'Paid';
+  const pending = r.status === 'Pending';
+  let qrisImage = null;
+  if (pending && r.qrString && req.query.qr !== '0') {
+    try {
+      qrisImage = await QRCode.toDataURL(r.qrString, { errorCorrectionLevel: 'M', margin: 2, width: 360 });
+    } catch (e) {
+      console.error('Gagal membuat gambar QR untuk', r.orderId, '-', e.message);
+    }
+  }
   res.json({
     orderId: r.orderId,
     status: r.status,
     teamName: r.teamName,
     captainWa: maskWa(r.captainWa),
     players: paid ? r.players.map((p) => ({ nick: p.nick, uid: p.uid, sid: p.sid })) : [],
-    payUrl: r.status === 'Pending' ? r.payUrl : null,
+    payUrl: pending ? r.payUrl : null,
+    qrisImage,
+    baseAmount: r.amount,
+    uniqueCode: pending ? (r.uniqueCode ?? (r.payAmount && r.amount ? r.payAmount - r.amount : null)) : null,
+    payAmount: pending ? r.payAmount || r.amount : null,
+    expiresAt: pending ? r.expiresAt : null,
     waGroupLink: paid ? config.waGroupLink : null,
   });
 }));

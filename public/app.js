@@ -288,7 +288,8 @@ $('#regForm').addEventListener('submit', async (e) => {
     }
     // Simpan kode pesanan supaya bisa dibuka lagi walau pindah aplikasi saat membayar
     try { localStorage.setItem('lastOrder', out.orderId); } catch (_) {}
-    window.location.href = out.payUrl;
+    // QRIS tampil langsung di website; halaman WaroengPay hanya cadangan kalau QRIS tidak tersedia
+    window.location.href = out.hasQris ? '/?order=' + encodeURIComponent(out.orderId) : out.payUrl;
   } catch (err) {
     $('#formError').textContent = err.message;
     payBtn.disabled = false;
@@ -303,11 +304,13 @@ function showStatus(orderId) {
   window.scrollTo({ top: 0 });
   $('#pCode').textContent = orderId;
   let tries = 0;
+  let haveQr = false;
   const poll = async () => {
     tries++;
     let r;
     try {
-      const res = await fetch('/api/registrations/' + encodeURIComponent(orderId));
+      // Gambar QR cukup diambil sekali; pengecekan berikutnya hanya status
+      const res = await fetch('/api/registrations/' + encodeURIComponent(orderId) + (haveQr ? '?qr=0' : ''));
       r = await res.json();
       if (res.status === 404) return renderPending({ status: 'NotFound' });
       if (!res.ok) throw new Error();
@@ -317,6 +320,7 @@ function showStatus(orderId) {
       return;
     }
     if (r.status === 'Paid') return renderPaid(r);
+    if (r.qrisImage) haveQr = true;
     renderPending(r);
     if (r.status === 'Pending') setTimeout(poll, tries < 100 ? 3000 : 15000);
   };
@@ -328,12 +332,27 @@ function renderPending(r) {
   $('#statusPending').classList.remove('hidden');
   $('#pTeam').textContent = r.teamName || '-';
   const pending = r.status === 'Pending';
+  if (r.qrisImage) $('#qrImg').src = r.qrisImage;
+  const showQr = pending && !!$('#qrImg').getAttribute('src');
+  $('#payBox').classList.toggle('hidden', !showQr);
+  if (showQr) {
+    $('#sumBase').textContent = rupiah(r.baseAmount);
+    $('#sumCode').textContent = r.uniqueCode ? '+' + rupiah(r.uniqueCode) : '-';
+    $('#sumTotal').textContent = rupiah(r.payAmount);
+    startPayTimer(r.expiresAt);
+  } else {
+    stopPayTimer();
+  }
   $('#pSpinner').classList.toggle('hidden', !pending);
-  $('#pPayBtn').classList.toggle('hidden', !(pending && r.payUrl));
-  if (r.payUrl) $('#pPayBtn').href = r.payUrl;
+  // Tanpa QRIS (cadangan): tombol besar ke halaman WaroengPay. Dengan QRIS: hanya link kecil
+  $('#pPayBtn').classList.toggle('hidden', !(pending && r.payUrl && !showQr));
+  $('#pPayAlt').classList.toggle('hidden', !(pending && r.payUrl && showQr));
+  if (r.payUrl) { $('#pPayBtn').href = r.payUrl; $('#pPayAlt').href = r.payUrl; }
   $('#pRetryBtn').classList.toggle('hidden', pending);
   const text = {
-    Pending: ['⏳', 'Menunggu pembayaran', 'Kami sedang mengecek pembayaranmu ke WaroengPay. Halaman ini otomatis diperbarui. Belum bayar? Klik "Lanjutkan Pembayaran".'],
+    Pending: showQr
+      ? ['📱', 'Scan & bayar QRIS', 'Selesaikan pembayaran sebelum waktunya habis. Tim otomatis tercatat lunas setelah pembayaran masuk.']
+      : ['⏳', 'Menunggu pembayaran', 'Kami sedang mengecek pembayaranmu ke WaroengPay. Halaman ini otomatis diperbarui. Belum bayar? Klik "Lanjutkan Pembayaran".'],
     Expired: ['⌛', 'Tagihan kedaluwarsa', 'Waktu pembayaran habis dan belum ada pembayaran masuk. Silakan daftar ulang.'],
     Failed: ['✖', 'Pembayaran gagal', 'Tagihan dibatalkan atau gagal dibuat. Silakan daftar ulang.'],
     NotFound: ['❔', 'Kode tidak ditemukan', 'Kode pendaftaran ini tidak ada. Periksa link-nya atau daftar ulang.'],
@@ -343,7 +362,36 @@ function renderPending(r) {
   $('#pDesc').textContent = text[2];
 }
 
+/* Timer sisa waktu bayar QRIS */
+let payTimer = null;
+let payTimerTarget = null;
+function stopPayTimer() { clearInterval(payTimer); payTimer = null; }
+function startPayTimer(expiresAt) {
+  const target = expiresAt ? new Date(expiresAt).getTime() : null;
+  if (!target || (payTimer && payTimerTarget === target)) return;
+  stopPayTimer();
+  payTimerTarget = target;
+  const tick = () => {
+    const s = Math.max(0, Math.floor((target - Date.now()) / 1000));
+    $('#payTimer').textContent = `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+    $('.pay-timer').classList.toggle('low', s < 120);
+    if (s === 0) stopPayTimer();
+  };
+  tick();
+  payTimer = setInterval(tick, 1000);
+}
+
+$('#saveQrBtn').addEventListener('click', () => {
+  const src = $('#qrImg').getAttribute('src');
+  if (!src) return;
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = `QRIS-HireCup-${$('#pCode').textContent}.png`;
+  a.click();
+});
+
 function renderPaid(r) {
+  stopPayTimer();
   $('#statusPending').classList.add('hidden');
   $('#statusPaid').classList.remove('hidden');
   $('#sTeam').textContent = r.teamName;
