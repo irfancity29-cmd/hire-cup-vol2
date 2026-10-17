@@ -80,7 +80,8 @@ nav .container{display:flex;align-items:center;justify-content:space-between;wid
 .hero h1 small{display:block;font-size:.3em;letter-spacing:.5em;margin-top:12px;color:var(--violet);-webkit-text-fill-color:var(--violet)}
 .tagline{color:var(--muted);font-size:20px;margin:22px auto 30px;max-width:640px}
 .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-.countdown{display:flex;gap:12px;justify-content:center;margin:34px 0 6px}
+.cd-title{margin-top:34px;color:var(--violet);letter-spacing:.3em;font-weight:700;font-size:13px}
+.countdown{display:flex;gap:12px;justify-content:center;margin:10px 0 6px}
 .cd{min-width:78px;background:#ffffff0a;border:1px solid var(--line);border-radius:8px;padding:12px 6px}
 .cd b{display:block;font-family:"Oxanium",sans-serif;font-size:32px;color:var(--gold2);font-variant-numeric:tabular-nums}
 .cd span{font-size:12px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}

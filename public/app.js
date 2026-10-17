@@ -6,7 +6,7 @@ const rupiah = (n) => 'Rp' + Number(n || 0).toLocaleString('id-ID');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const initial = (s) => (String(s || '?').trim().charAt(0) || '?').toUpperCase();
 
-let CONFIG = { fee: 150000, basePrize: 100000, prizePerTeam: 150000, maxTeams: 32, minPlayers: 5, maxPlayers: 7, closeAt: null, closedReason: null, paidCount: 0 };
+let CONFIG = { fee: 150000, basePrize: 100000, prizePerTeam: 150000, maxTeams: 32, minPlayers: 5, maxPlayers: 7, closeAt: '2026-12-24T23:59:00+07:00', tournamentAt: '2026-12-25T00:00:00+07:00', closedReason: null, paidCount: 0 };
 
 $('#yr').textContent = new Date().getFullYear();
 
@@ -30,24 +30,26 @@ $$('.reveal').forEach((n) => (io ? io.observe(n) : n.classList.add('in')));
 let lastPrize = null;
 function renderConfig() {
   const c = CONFIG;
-  const prize = c.prizeTotal ?? c.basePrize;
+  // Angka live belum tersedia (server belum tersambung ke database) → tampilkan "…" bukan angka yang salah
+  const known = c.prizeTotal !== null && c.prizeTotal !== undefined;
+  const prize = known ? c.prizeTotal : null;
   const left = Math.max(0, c.maxTeams - (c.paidCount || 0));
   const el = $('#prizeTotal');
-  el.textContent = rupiah(prize);
-  if (lastPrize !== null && prize !== lastPrize) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
-  lastPrize = prize;
+  el.textContent = known ? rupiah(prize) : 'Rp…';
+  if (known && lastPrize !== null && prize !== lastPrize) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+  if (known) lastPrize = prize;
 
   $('#st-fee').textContent = rupiah(c.fee);
-  $('#st-prize').textContent = rupiah(prize);
-  $('#st-slots').textContent = `${c.paidCount || 0}/${c.maxTeams}`;
+  $('#st-prize').textContent = known ? rupiah(prize) : '…';
+  $('#st-slots').textContent = known ? `${c.paidCount}/${c.maxTeams}` : `…/${c.maxTeams}`;
   $('#feeAbout').textContent = rupiah(c.fee);
   $('#feeBox').textContent = rupiah(c.fee);
   $('#poolBase').textContent = rupiah(c.basePrize);
   $('#poolPerTeam').textContent = rupiah(c.prizePerTeam);
   $('#poolPer').textContent = rupiah(c.prizePerTeam);
-  $('#poolTeamCount').textContent = c.paidCount || 0;
-  $('#poolSlotsLeft').textContent = left;
-  $('#slotNow').textContent = c.paidCount || 0;
+  $('#poolTeamCount').textContent = known ? c.paidCount : '…';
+  $('#poolSlotsLeft').textContent = known ? left : '…';
+  $('#slotNow').textContent = known ? c.paidCount : '…';
   $('#slotMax').textContent = c.maxTeams;
   $('#slotFill').style.width = Math.min(100, ((c.paidCount || 0) / c.maxTeams) * 100) + '%';
   $('#payBtn').textContent = `Lanjut ke Pembayaran · ${rupiah(c.fee)}`;
@@ -55,7 +57,8 @@ function renderConfig() {
   if (c.contactWa) {
     const wa = 'https://wa.me/' + c.contactWa + '?text=' + encodeURIComponent('Halo panitia HIRE CUP Vol 2, saya mau tanya soal pendaftaran.');
     ['#contactBtn', '#waFloat'].forEach((s) => { $(s).href = wa; $(s).classList.remove('hidden'); });
-    $('#trustContact').innerHTML ='WhatsApp <a href="' + wa + '" target="_blank" rel="noopener">+' + esc(c.contactWa) + '</a>';
+    const shown = c.contactWa.replace(/^62/, '0').replace(/^(\d{4})(\d{4})(\d+)$/, '$1-$2-$3');
+    $('#trustContact').innerHTML = 'WhatsApp <a href="' + wa + '" target="_blank" rel="noopener">' + esc(shown) + '</a>';
   }
 }
 
@@ -64,8 +67,9 @@ async function loadConfig() {
     const res = await fetch('/api/config');
     if (!res.ok) throw new Error();
     CONFIG = { ...CONFIG, ...(await res.json()) };
-    $('#poolLive').classList.remove('off');
-    $('#poolLiveText').textContent = 'LIVE';
+    const live = CONFIG.dbReady !== false;
+    $('#poolLive').classList.toggle('off', !live);
+    $('#poolLiveText').textContent = live ? 'LIVE' : 'MENYAMBUNGKAN…';
   } catch (_) {
     $('#poolLive').classList.add('off');
     $('#poolLiveText').textContent = 'GAGAL MEMUAT';
@@ -109,26 +113,33 @@ async function loadTeams() {
 }
 $('#teamSearch').addEventListener('input', renderTeams);
 
-/* Countdown */
+/* Countdown: sampai pendaftaran ditutup, lalu sampai turnamen dimulai */
 let cdTimer;
+const fmtDate = (t, withTime) => new Date(t).toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', ...(withTime ? { hour: '2-digit', minute: '2-digit' } : {}), timeZone: 'Asia/Jakarta' });
 function startCountdown() {
   clearInterval(cdTimer);
-  if (!CONFIG.closeAt) return;
-  const target = new Date(CONFIG.closeAt).getTime();
-  $('#closeLabel').textContent = 'Pendaftaran ditutup ' + new Date(target).toLocaleString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+  const closeAt = new Date(CONFIG.closeAt).getTime();
+  const startAt = new Date(CONFIG.tournamentAt).getTime();
   const set = (k, v) => { $(`[data-cd="${k}"]`).textContent = v; };
   const tick = () => {
-    const left = Math.max(0, target - Date.now());
-    const s = Math.floor(left / 1000);
+    const now = Date.now();
+    let target;
+    if (now < closeAt) {
+      target = closeAt;
+      $('#cdTitle').textContent = 'PENDAFTARAN DITUTUP DALAM';
+      $('#closeLabel').textContent = `Pendaftaran ditutup ${fmtDate(closeAt, true)} WIB · Turnamen ${fmtDate(startAt)}`;
+    } else {
+      target = startAt;
+      $('#cdTitle').textContent = now < startAt ? 'TURNAMEN DIMULAI DALAM' : 'TURNAMEN SEDANG BERLANGSUNG';
+      $('#closeLabel').textContent = `Pendaftaran sudah ditutup · Turnamen ${fmtDate(startAt)}`;
+      if (!CONFIG.closedReason) setClosed('Pendaftaran sudah ditutup.');
+    }
+    const s = Math.floor(Math.max(0, target - now) / 1000);
     set('d', pad(Math.floor(s / 86400)));
     set('h', pad(Math.floor((s % 86400) / 3600)));
     set('m', pad(Math.floor((s % 3600) / 60)));
     set('s', pad(s % 60));
-    if (left === 0) {
-      clearInterval(cdTimer);
-      $('#closeLabel').textContent = 'Pendaftaran sudah ditutup';
-      setClosed('Pendaftaran sudah ditutup.');
-    }
+    if (now >= startAt) clearInterval(cdTimer);
   };
   tick();
   cdTimer = setInterval(tick, 1000);

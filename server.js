@@ -52,16 +52,10 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// Selama database belum tersambung, API menjawab 503 dengan pesan jelas (halaman tetap tampil)
-app.use('/api', (_req, res, next) => {
-  if (mongoose.connection.readyState === 1) return next();
-  res.status(503).json({ error: 'Server sedang tidak tersambung ke database. Coba lagi beberapa saat lagi.' });
-});
-
-/* ============================ PUBLIK ============================ */
-
+// Pengaturan publik. Tetap menjawab walau database belum tersambung (countdown & biaya tetap tampil)
 app.get('/api/config', wrap(async (_req, res) => {
-  const s = await reg.stats();
+  const dbReady = mongoose.connection.readyState === 1;
+  const s = dbReady ? await reg.stats() : null;
   res.json({
     fee: config.fee,
     basePrize: config.basePrize,
@@ -70,12 +64,22 @@ app.get('/api/config', wrap(async (_req, res) => {
     minPlayers: config.minPlayers,
     maxPlayers: config.maxPlayers,
     closeAt: config.closeAt,
+    tournamentAt: config.tournamentAt,
     contactWa: config.contactWa || null,
-    paidCount: s.paidCount,
-    prizeTotal: s.prizeTotal,
-    closedReason: reg.closedReason(s),
+    dbReady,
+    paidCount: s ? s.paidCount : null,
+    prizeTotal: s ? s.prizeTotal : null,
+    closedReason: reg.closedReason(s || { paidCount: 0 }),
   });
 }));
+
+// Selama database belum tersambung, API menjawab 503 dengan pesan jelas (halaman tetap tampil)
+app.use('/api', (_req, res, next) => {
+  if (mongoose.connection.readyState === 1) return next();
+  res.status(503).json({ error: 'Server sedang tidak tersambung ke database. Coba lagi beberapa saat lagi.' });
+});
+
+/* ============================ PUBLIK ============================ */
 
 app.get('/api/teams', wrap(async (_req, res) => {
   const teams = await Registration.find({ status: 'Paid', hidden: false }).sort({ paidAt: 1 }).select('teamName -_id').lean();
